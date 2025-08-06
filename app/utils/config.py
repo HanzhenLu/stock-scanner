@@ -5,24 +5,14 @@ from datetime import datetime
 
 from app.logger import logger
 
-class APIKeys(BaseModel):
-    openai: str = ""
-    anthropic: str = ""
-    zhipu: str = ""
-
 class GenerationConfig(BaseModel):
-    model_preference: str = "openai"
-    models: dict[str, str] = {
-        "openai": "gpt-4o-mini",
-        "anthropic": "claude-3-haiku-20240307",
-        "zhipu": "chatglm_turbo"
-    }
+    server_name: str = "openai"
+    model_name: str = "qwen"
     max_tokens: int = 4096
     temperature: float = 0.7
     extra_parm: dict[str, str] = {}
-    api_base_urls: dict[str, str] = {
-        "openai": "https://api.openai.com/v1"
-    }
+    api_base_url: str = "https://api.openai.com/v1"
+    api_key: str = ""
 
 class AnalysisWeights(BaseModel):
     technical: float = 0.4
@@ -55,7 +45,6 @@ class Metadata(BaseModel):
     description: str = "Web版AI股票分析系统配置文件"
 
 class WebConfig(BaseModel):
-    api_keys: APIKeys = APIKeys()
     generation: GenerationConfig = GenerationConfig()
     analysis_weights: AnalysisWeights = AnalysisWeights()
     cache: CacheConfig = CacheConfig()
