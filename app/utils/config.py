@@ -7,7 +7,7 @@ from app.logger import logger
 
 class GenerationConfig(BaseModel):
     server_name: str = "openai"
-    model_name: str = "qwen"
+    model_name: str = "gpt-3.5-turbo"
     max_tokens: int = 4096
     temperature: float = 0.7
     extra_parm: dict[str, str] = {}
@@ -64,7 +64,7 @@ def load_config(config_file:str) -> WebConfig:
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
             logger.info(f"✅ 成功加载配置文件: {config_file}")
-            return WebConfig.model_validate_json(config)
+            return WebConfig.model_validate_json(json.dumps(config))
         else:
             logger.warning(f"⚠️ 配置文件 {config_file} 不存在，使用默认配置")
             default_config = get_default_config()

@@ -1,9 +1,9 @@
-from logger import logger
-from utils.config import GenerationConfig
+from app.logger import logger
+from app.utils.config import GenerationConfig
 from app.services.prompt_builder import build_enhanced_ai_analysis_prompt
 
-def generate_ai_analysis(analysis_data:dict, enable_streaming:bool=False, 
-                         stream_callback:bool=None) -> str:
+def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
+                         enable_streaming:bool=False, stream_callback:bool=None) -> str:
     """生成AI增强分析 - 支持流式输出"""
     try:
         logger.info("🤖 开始AI深度分析...")
@@ -23,7 +23,7 @@ def generate_ai_analysis(analysis_data:dict, enable_streaming:bool=False,
         )
         
         # 调用AI API（支持流式）
-        ai_response = _call_ai_api(prompt, enable_streaming, stream_callback)
+        ai_response = _call_ai_api(prompt, generation_config, enable_streaming, stream_callback)
         
         if ai_response:
             logger.info("✅ AI深度分析完成")

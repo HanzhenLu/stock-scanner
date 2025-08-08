@@ -47,7 +47,7 @@ class WebStockAnalyzer:
         logger.info(f"🤖 使用AI: {self.config.generation.server_name}:{self.config.generation.model_name}")
         logger.info(f"🎯 使用url: {self.config.generation.api_base_url}")
         
-        if not self.config.generation.api_keys:
+        if not self.config.generation.api_key:
             logger.warning("⚠️ 未提供api keys")
         
         logger.info(f"📊 财务指标数量: {self.config.analysis_params.financial_indicators_count}")
@@ -733,7 +733,7 @@ class WebStockAnalyzer:
                 'fundamental_data': fundamental_data,
                 'sentiment_analysis': sentiment_analysis,
                 'scores': scores
-            }, enable_streaming, stream_callback)
+            }, analyzer.config.generation, enable_streaming, stream_callback)
             
             # 7. 生成最终报告
             report = {
@@ -793,3 +793,15 @@ class WebStockAnalyzer:
         """兼容方法：获取情绪分析"""
         news_data = self.get_comprehensive_news_data(stock_code)
         return self.calculate_advanced_sentiment_analysis(news_data)
+    
+def init_analyzer(config_path:str) -> WebStockAnalyzer:
+    """初始化分析器"""
+    global analyzer
+    try:
+        logger.info("正在初始化WebStockAnalyzer...")
+        analyzer = WebStockAnalyzer(config_path)
+        logger.info("✅ WebStockAnalyzer初始化成功")
+        return analyzer
+    except Exception as e:
+        logger.error(f"❌ 分析器初始化失败: {e}")
+        return None
