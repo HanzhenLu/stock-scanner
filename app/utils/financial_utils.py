@@ -212,14 +212,15 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
         # 移动平均线
         try:
             latest_price = safe_float(price_data['close'].iloc[-1])
-            close_tail = price_data['close'].iloc[-20:]
-            ma5 = rolling_mean_tail(close_tail, 5, latest_price)
-            ma10 = rolling_mean_tail(close_tail, 10, latest_price)
-            ma20 = rolling_mean_tail(close_tail, 20, latest_price)
+            close = price_data['close']
+            ma5 = close.ewm(span=5, adjust=False).mean().iloc[-1]
+            ma10 = close.ewm(span=10, adjust=False).mean().iloc[-1]
+            ma20 = close.ewm(span=20, adjust=False).mean().iloc[-1]
             
+            technical_analysis['ma5'] = ma5
+            technical_analysis['ma10'] = ma10
+            technical_analysis['ma20'] = ma20
             
-            if min(latest_price, ma5, ma10, ma20) == 0.0:
-                technical_analysis['ma_trend'] = '计算失败'
             if latest_price > ma5 > ma10 > ma20:
                 technical_analysis['ma_trend'] = '多头排列'
             elif latest_price < ma5 < ma10 < ma20:
@@ -233,7 +234,7 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
         # RSI指标
         try:
             window = 14
-            close = price_data['close'].iloc[-(window + 1):]  # 只取最后 window+1 个数据
+            close = price_data['close']
 
             # 检查数据是否足够
             if len(close) < window + 1:
@@ -243,11 +244,11 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
                 gain = delta.clip(lower=0)
                 loss = -delta.clip(upper=0)
 
-                # 使用 Wilder's 平滑方法
+                # 用 EWM 实现 Wilder 平滑
                 avg_gain = gain.ewm(alpha=1/window, min_periods=window, adjust=False).mean()
                 avg_loss = loss.ewm(alpha=1/window, min_periods=window, adjust=False).mean()
 
-                rs = avg_gain / avg_loss
+                rs = avg_gain / avg_loss.replace(0, pd.NA)  # 防止除零
                 rsi_last = 100 - (100 / (1 + rs.iloc[-1]))
                 technical_analysis['rsi'] = safe_float(rsi_last, -1)
                 if technical_analysis["rsi"] == -1:
@@ -261,8 +262,7 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
             if len(close) < 35:
                 technical_analysis['macd_signal'] = '数据不足'
             else:
-                # 只提取最近35个点（26 + 9）用于计算效率
-                close_recent = close.iloc[-35:]
+                close_recent = close
 
                 # EMA 计算：用于最后两个点
                 ema12 = close_recent.ewm(span=12, adjust=False).mean()
@@ -280,8 +280,13 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
                 elif dif_prev > dea_prev and dif_now < dea_now:
                     # DIF 下穿 DEA => 死叉
                     technical_analysis['macd_signal'] = '零上死叉' if dif_now > 0 else '零下死叉'
+                elif dif_now > dea_now:
+                    technical_analysis['macd_signal'] = '多头趋势'
                 else:
-                    technical_analysis['macd_signal'] = '横盘整理'
+                    technical_analysis['macd_signal'] = '空头趋势'
+            
+                technical_analysis['dif'] = dif_now
+                technical_analysis['dea'] = dea_now
 
         except Exception as e:
             technical_analysis['macd_signal'] = '计算失败'
@@ -318,7 +323,7 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
         # 成交量分析
         try:
             volume_window = min(20, len(price_data))
-            recent_data = price_data.iloc[-volume_window]
+            recent_data = price_data.iloc[-volume_window:]
             recent_volume = safe_float(price_data['volume'].iloc[-1])
             avg_volume = safe_float(recent_data['volume'].mean(), recent_volume)
             
@@ -360,7 +365,9 @@ def calculate_technical_score(technical_analysis:dict) -> float:
             score -= 20
         
         rsi = technical_analysis.get('rsi', 50)
-        if 30 <= rsi <= 70:
+        if isinstance(rsi, str):
+            score -= 5
+        elif 30 <= rsi <= 70:
             score += 10
         elif rsi < 30:
             score += 5

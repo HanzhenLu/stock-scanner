@@ -91,16 +91,16 @@ def build_enhanced_ai_analysis_prompt(
 **股票基本信息：**
 - 股票代码：{stock_code}
 - 股票名称：{stock_name}
-- 当前价格：{price_info.get('current_price', -1):.2f}元
-- 涨跌幅：{price_info.get('price_change', -1):.2f}%
-- 成交量比率：{price_info.get('volume_ratio', -1):.2f}
-- 波动率：{price_info.get('volatility', -1):.2f}%
+- 当前价格：{price_info.get('current_price', '未知'):2.2}元
+- 涨跌幅：{price_info.get('price_change', '未知'):2.2}%
+- 成交量比率：{price_info.get('volume_ratio', '未知'):2.2}
+- 波动率：{price_info.get('volatility', '未知'):2.2}%
 
 **技术分析详情：**
-- 均线趋势：{technical_analysis.get('ma_trend', '未知')}
-- RSI指标：{technical_analysis.get('rsi', 0):.5f}
-- MACD信号：{technical_analysis.get('macd_signal', '未知')}
-- 布林带位置：{technical_analysis.get('bb_position', 0):.5f}
+- 均线趋势：{technical_analysis.get('ma_trend', '未知')} ExpMA5:{technical_analysis.get('ma5', '未知'):5.5} ExpMA10:{technical_analysis.get('ma10', '未知'):5.5} ExpMA20:{technical_analysis.get('ma20', '未知'):5.5}
+- RSI指标：{technical_analysis.get('rsi', '未知'):5.5}
+- MACD信号：{technical_analysis.get('macd_signal', '未知')} dif:{technical_analysis.get('dif', '未知'):5.5} dea:{technical_analysis.get('dea', '未知'):5.5}
+- 布林带位置：{technical_analysis.get('bb_position', '未知'):5.5}
 - 成交量状态：{technical_analysis.get('volume_status', '未知')}
 
 {financial_text}

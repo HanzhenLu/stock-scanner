@@ -355,7 +355,7 @@
                 } else {
                     // 如果没有找到结果区域，创建临时显示区域
                     const resultsContent = document.getElementById('resultsContent');
-                    resultsContent.innerHTML = `
+                    resultsContent.insertAdjacentHTML('beforeend', `
                         <div style="line-height: 1.6;">
                             <h2 style="color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 12px; margin-bottom: 20px;">
                                 📈 实时分析进行中...
@@ -367,7 +367,7 @@
                                 <div id="aiStreamContent" style="color: #5d4037; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;"></div>
                             </div>
                         </div>
-                    `;
+                    `);
                     aiStreamDiv = document.getElementById('aiStreamContent');
                 }
             }
@@ -522,13 +522,6 @@
                                 <p>🌊 正在处理新闻情绪...</p>
                             </div>
                         </div>
-                        
-                        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
-                            <h3 style="color: #f57c00; margin-bottom: 12px;">🤖 AI 深度分析进行中</h3>
-                            <div style="color: #5d4037; font-size: 14px; line-height: 1.7;">
-                                正在收集数据并进行AI智能分析，请稍候...
-                            </div>
-                        </div>
                     </div>
                 `;
             }
@@ -565,64 +558,6 @@
                 updateNonAIContent(report);
                 return;
             }
-            
-            // 处理AI分析的markdown内容（如果没有流式内容）
-            if (report.ai_analysis) {
-                if (typeof marked !== 'undefined') {
-                    aiAnalysisHtml = marked.parse(report.ai_analysis);
-                } else {
-                    aiAnalysisHtml = simpleMarkdownParse(report.ai_analysis);
-                }
-            } else {
-                aiAnalysisHtml = '<p>分析数据准备中...</p>';
-            }
-            
-            const html = `
-                <div style="line-height: 1.6;">
-                    <h2 style="color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 12px; margin-bottom: 20px;">
-                        📈 ${report.stock_name || report.stock_code} 分析报告
-                        <span style="font-size: 12px; color: #28a745; font-weight: normal;">✅ 流式分析完成</span>
-                    </h2>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                        <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                            <h4 style="color: #495057; margin-bottom: 8px;">基本信息</h4>
-                            <p><strong>股票代码:</strong> ${report.stock_code}</p>
-                            <p><strong>当前价格:</strong> ¥${(report.price_info?.current_price || 0).toFixed(2)}</p>
-                            <p><strong>涨跌幅:</strong> ${(report.price_info?.price_change || 0).toFixed(2)}%</p>
-                        </div>
-                        
-                        <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                            <h4 style="color: #495057; margin-bottom: 8px;">技术指标</h4>
-                            <p><strong>RSI:</strong> ${(report.technical_analysis?.rsi || 0).toFixed(1)}</p>
-                            <p><strong>趋势:</strong> ${report.technical_analysis?.ma_trend || '未知'}</p>
-                            <p><strong>MACD:</strong> ${report.technical_analysis?.macd_signal || '未知'}</p>
-                        </div>
-                        
-                        <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                            <h4 style="color: #495057; margin-bottom: 8px;">市场情绪</h4>
-                            <p><strong>情绪趋势:</strong> ${report.sentiment_analysis?.sentiment_trend || '中性'}</p>
-                            <p><strong>新闻数量:</strong> ${report.sentiment_analysis?.total_analyzed || 0} 条</p>
-                            <p><strong>置信度:</strong> ${((report.sentiment_analysis?.confidence_score || 0) * 100).toFixed(1)}%</p>
-                        </div>
-                    </div>
-                    
-                    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 24px;">
-                        <h3 style="color: #1976d2; margin-bottom: 12px;">🎯 投资建议</h3>
-                        <p style="font-size: 18px; font-weight: 600; color: #1976d2;">${report.recommendation || '数据不足'}</p>
-                    </div>
-                    
-                    <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
-                        <h3 style="color: #f57c00; margin-bottom: 12px;">🤖 AI 深度分析</h3>
-                        <div style="color: #5d4037; font-size: 14px; line-height: 1.7;" class="ai-analysis-content">
-                            ${aiAnalysisHtml}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            resultsContent.innerHTML = html;
-            document.getElementById('exportBtn').style.display = 'inline-flex';
         }
 
         function updateNonAIContent(report) {
@@ -1132,13 +1067,6 @@ ${aiAnalysis}
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            addLog('🚀 现代股票分析系统已启动 (SSE流式版)', 'success');
-            addLog('📋 Enhanced v3.0-Web-SSE | WebStockAnalyzer (SSE版)', 'info');
-            addLog('🌊 SSE流式推送：实时进度显示', 'info');
-            addLog('🔥 高并发优化：线程池 + 异步处理 + 任务队列', 'info');
-            addLog('🤖 AI分析：支持OpenAI/Claude/智谱AI智能切换', 'info');
-            addLog('🔐 安全特性：密码鉴权 + 会话管理', 'info');
-            addLog('💡 支持股票代码：000001, 600036, 300019等', 'info');
             
             // 初始化SSE连接
             initSSE();
@@ -1152,26 +1080,9 @@ ${aiAnalysis}
                         addLog(`🔧 系统状态：${data.data.active_tasks} 个活跃任务`, 'info');
                         addLog(`🧵 线程池：${data.data.max_workers} 个工作线程`, 'info');
                         
-                        if (data.data.api_configured) {
-                            const apis = data.data.configured_apis || [];
-                            const versions = data.data.api_versions || {};
-                            const primary = data.data.primary_api || 'openai';
-                            
-                            addLog(`🤖 AI API已配置: ${apis.join(', ')}`, 'success');
-                            addLog(`🎯 主要API: ${primary}`, 'info');
-                            
-                            apis.forEach(api => {
-                                const version = versions[api] || '';
-                                if (version) {
-                                    addLog(`   - ${api}: ${version}`, 'info');
-                                }
-                            });
-                            
-                            addLog('🚀 支持完整AI深度分析', 'success');
-                        } else {
-                            addLog('⚠️ 未配置AI API，将使用高级规则分析', 'warning');
-                            addLog('💡 配置AI API密钥以获得最佳分析体验', 'info');
-                        }
+                        addLog(`🤖 AI API已配置: ${data.data.primary_api}`, 'success');
+                        
+                        addLog('🚀 支持完整AI深度分析', 'success');
                     }
                 })
                 .catch(error => {
