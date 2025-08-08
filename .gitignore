@@ -1,0 +1,64 @@
+# Python 缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境文件夹（如果你用的是venv）
+venv/
+env/
+.venv/
+
+# IDE 文件
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 日志文件
+*.log
+
+# 数据库文件
+*.sqlite3
+
+# 证书、密钥等敏感文件（根据实际情况添加）
+*.pem
+*.key
+
+# Flask 特定
+instance/
+*.pyc
+
+# Jupyter Notebook 检查点
+.ipynb_checkpoints
+
+# 依赖包文件夹
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# pip 缓存
+pip-log.txt
+pip-delete-this-directory.txt
+
+# mypy 类型检查缓存
+.mypy_cache/
+
+# pytest 缓存
+.cache/
+
+# coverage 测试覆盖率
+.coverage
+htmlcov/
+
+# Python 打包文件
+build/
+dist/
+*.egg-info/
+
+# macOS 系统文件
+.DS_Store
+
+# Window
+
+test.ipynb
