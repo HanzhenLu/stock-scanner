@@ -1,6 +1,8 @@
+import pandas as pd
+
 from app.logger import logger
 from app.utils.config import GenerationConfig
-from app.services.prompt_builder import build_enhanced_ai_analysis_prompt
+from app.services.prompt_builder import build_enhanced_ai_analysis_prompt, build_K_graph_table_prompt
 
 def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
                          enable_streaming:bool=False, stream_callback:bool=None) -> str:
@@ -16,10 +18,12 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         sentiment_analysis = analysis_data['sentiment_analysis']
         price_info = analysis_data['price_info']
         
+        K_graph_conclusion = k_graph_analysis(analysis_data['k_graph_table'], generation_config)
+        
         # 构建增强版AI分析提示词
         prompt = build_enhanced_ai_analysis_prompt(
             stock_code, stock_name, scores, technical_analysis, 
-            fundamental_data, sentiment_analysis, price_info
+            fundamental_data, sentiment_analysis, price_info, K_graph_conclusion
         )
         
         # 调用AI API（支持流式）
@@ -34,6 +38,18 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
             
     except Exception as e:
         logger.error(f"AI分析失败: {e}")
+        return None
+    
+def k_graph_analysis(price_data:pd.DataFrame, generation_config:GenerationConfig) -> str:
+    prompt = build_K_graph_table_prompt(price_data)
+    no_thinking_config = generation_config.model_copy()
+    no_thinking_config.extra_parm = {"chat_template_kwargs": {"enable_thinking": False}}
+    ai_response = _call_ai_api(prompt, no_thinking_config)
+    if ai_response:
+        logger.info("✅ K graph表格读取完成")
+        return ai_response
+    else:
+        logger.warning("⚠️ K graph表格读取失败")
         return None
     
 def _call_ai_api(prompt:str, generation_config:GenerationConfig, 
@@ -87,7 +103,8 @@ def _call_openai_api(prompt:str, generation_config:GenerationConfig,
                     messages=messages,
                     max_tokens=generation_config.max_tokens,
                     temperature=generation_config.temperature,
-                    stream=True
+                    stream=True,
+                    extra_body=generation_config.extra_parm
                 )
                 
                 full_response = ""
@@ -106,7 +123,8 @@ def _call_openai_api(prompt:str, generation_config:GenerationConfig,
                     model=generation_config.model_name,
                     messages=messages,
                     max_tokens=generation_config.max_tokens,
-                    temperature=generation_config.temperature
+                    temperature=generation_config.temperature,
+                    extra_body=generation_config.extra_parm
                 )
                 return response.choices[0].message.content
                 

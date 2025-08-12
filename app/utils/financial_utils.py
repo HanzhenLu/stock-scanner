@@ -190,6 +190,17 @@ def get_price_info(price_data:pd.DataFrame) -> dict:
             'volume_ratio': -1,
             'volatility': -1
         }
+        
+def get_K_graph_table(price_data:pd.DataFrame) -> pd.DataFrame:
+    columns_to_keep = ['open', 'close', 'high', 'low']
+    missing_cols = [col for col in columns_to_keep if col not in price_data.columns]
+    if missing_cols:
+        logger.debug(f"输入的DataFrame缺少以下列: {missing_cols}")
+        return None
+    recent_data = price_data[columns_to_keep].tail(30)
+    result = recent_data.fillna("-1")
+    
+    return result
 
 def _get_default_technical_analysis() -> dict:
     """获取默认技术分析结果"""
