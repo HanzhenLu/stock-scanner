@@ -4,7 +4,7 @@ from app.container import sse_manager
 from app.container.analyzer import get_analyzer
 from app.utils.format_utils import clean_data_for_json
 from app.services.ai_client import generate_ai_analysis
-from app.utils.financial_utils import calculate_technical_score, calculate_technical_indicators, get_price_info
+from app.utils.financial_utils import calculate_technical_score, calculate_technical_indicators, get_price_info, get_K_graph_table
 
 class StreamingAnalyzer:
     """流式分析器"""
@@ -205,7 +205,8 @@ def analyze_stock_streaming(stock_code, enable_streaming, client_id):
             'technical_analysis': technical_analysis,
             'fundamental_data': fundamental_data,
             'sentiment_analysis': sentiment_analysis,
-            'scores': scores
+            'scores': scores,
+            "k_graph_table": get_K_graph_table(price_data)
         }, analyzer.config.generation, enable_streaming, ai_stream_callback)
         
         # 如果AI分析返回了完整内容，使用返回的内容，否则使用缓冲的内容

@@ -62,7 +62,7 @@ class WebStockAnalyzer:
         
         logger.info("=" * 40)
 
-    def  get_stock_data(self, stock_code:str):
+    def get_stock_data(self, stock_code:str):
         """获取股票价格数据"""
         if stock_code in self.price_cache:
             cache_time, data = self.price_cache[stock_code]
@@ -266,7 +266,7 @@ class WebStockAnalyzer:
             # 6. 行业分析
             try:
                 logger.info("正在获取行业分析数据...")
-                industry_analysis = self.get_industry_analysis(stock_code, fundamental_data['basic_info']["行业"])
+                industry_analysis = self.get_industry_analysis(fundamental_data['basic_info']["行业"])
                 fundamental_data['industry_analysis'] = industry_analysis
                 logger.info("✓ 行业分析数据获取成功")
             except Exception as e:

@@ -1,3 +1,5 @@
+import pandas as pd
+
 from app.utils.format_utils import format_dict_data, format_list_data
 
 MAX_LIST_ITEMS = 5
@@ -77,7 +79,7 @@ def _get_analysis_instruction():
 def build_enhanced_ai_analysis_prompt(
     stock_code: str, stock_name: str, scores: dict,
     technical_analysis: dict, fundamental_data: dict,
-    sentiment_analysis: dict, price_info: dict
+    sentiment_analysis: dict, price_info: dict, K_graph_description: str
 ) -> str:
 
     financial_text = _build_financial_section(fundamental_data.get('financial_indicators', {}))
@@ -118,6 +120,18 @@ def build_enhanced_ai_analysis_prompt(
 
 {news_text}
 
+**近期价格走势**
+{K_graph_description}
+
 {_get_analysis_instruction()}"""
 
+    return prompt
+
+def build_K_graph_table_prompt(K_graph_table:pd.DateOffset) -> str:
+    prompt = f'''请作为一位资深的股票分析师，基于30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
+表格如下
+{str(K_graph_table)}
+你首先需要对这个表格的内容进行描述，然后提供一些见解。
+注意，请直接输出描述和见解，不需要添加任何额外内容！
+'''
     return prompt
