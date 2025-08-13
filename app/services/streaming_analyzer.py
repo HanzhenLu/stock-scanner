@@ -103,7 +103,7 @@ def analyze_stock_streaming(stock_code, enable_streaming, client_id):
             raise ValueError(f"无法获取股票 {stock_code} 的价格数据")
         
         price_info = get_price_info(price_data)
-        streamer.send_log(f"✓ 当前价格: {price_info['current_price']:.2f}元", 'success')
+        streamer.send_log(f"✓ 当前价格: {price_info['current_price']:5f}元", 'success')
         
         # 更新基本信息
         streamer.send_partial_result({

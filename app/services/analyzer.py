@@ -1,6 +1,7 @@
 import pandas as pd
 import akshare as ak
 import math
+import time
 from datetime import datetime, timedelta
 
 from app.logger import logger
@@ -158,7 +159,6 @@ class WebStockAnalyzer:
                 return data
         
         current_time = datetime.today()
-        formatted_date = current_time.strftime("%Y%m%d")
         
         try:
             fundamental_data = {}
@@ -175,9 +175,9 @@ class WebStockAnalyzer:
                 logger.warning(f"获取基本信息失败: {e}")
                 fundamental_data['basic_info'] = {}
             
-            # 2. 详细财务指标 - 25项核心指标
+            # 2. 详细财务指标 - 核心指标
             try:
-                logger.info("正在获取25项详细财务指标...")
+                logger.info("正在获取详细财务指标...")
                 financial_indicators = {}
                 
                 # 获取主要财务数据
@@ -185,7 +185,7 @@ class WebStockAnalyzer:
                     # 利润表数据
                     income_statement = ak.stock_financial_abstract_ths(symbol=stock_code, indicator="按报告期")
                     if not income_statement.empty:
-                        latest_income = income_statement.iloc[0].to_dict()
+                        latest_income = income_statement.iloc[-1].to_dict()
                         financial_indicators.update(latest_income)
                 except Exception as e:
                     logger.warning(f"获取利润表数据失败: {e}")
@@ -199,16 +199,7 @@ class WebStockAnalyzer:
                 except Exception as e:
                     logger.warning(f"获取财务分析指标失败: {e}")
                 
-                # 获取现金流量表
-                try:
-                    cash_flow = ak.stock_cash_flow_sheet_by_report_em(symbol=stock_code)
-                    if not cash_flow.empty:
-                        latest_cash = cash_flow.iloc[-1].to_dict()
-                        financial_indicators.update(latest_cash)
-                except Exception as e:
-                    logger.warning(f"获取现金流量表失败: {e}")
-                
-                # 计算25项核心财务指标
+                # 计算核心财务指标
                 core_indicators = calculate_core_financial_indicators(financial_indicators)
                 fundamental_data['financial_indicators'] = core_indicators
                 
@@ -219,7 +210,7 @@ class WebStockAnalyzer:
             # 3. 估值指标
             try:
                 logger.info("正在获取估值指标...")
-                valuation_data = ak.stock_a_indicator_lg(symbol=stock_code)
+                valuation_data = ak.stock_value_em(symbol=stock_code)
                 if not valuation_data.empty:
                     latest_valuation = valuation_data.iloc[-1].to_dict()
                     # 清理估值数据中的NaN值
@@ -240,11 +231,24 @@ class WebStockAnalyzer:
             # 4. 业绩预告和业绩快报
             try:
                 logger.info("正在获取业绩报表...")
-                performance_forecast = ak.stock_yjbb_em(formatted_date)  
-                if not performance_forecast.empty:
+                if current_time.month <= 3:
+                    query_time = [f"{current_time.year-1}1231", f"{current_time.year-1}0930", f"{current_time.year-1}0630", f"{current_time.year-1}0331"]
+                elif current_time.month <= 6:
+                    query_time = [f"{current_time.year}0331", f"{current_time.year-1}1231", f"{current_time.year-1}0930", f"{current_time.year-1}0630"]
+                elif current_time.month <= 9:
+                    query_time = [f"{current_time.year}0630", f"{current_time.year}0331", f"{current_time.year-1}1231", f"{current_time.year-1}0930"]
+                else:
+                    query_time = [f"{current_time.year}0930", f"{current_time.year}0630", f"{current_time.year}0331", f"{current_time.year-1}1231"]
+                for t in query_time:
+                    time.sleep(1)
+                    performance_forecast = ak.stock_yjbb_em(t)
+                    if stock_code in performance_forecast["股票代码"].values:
+                        break
+                if stock_code in performance_forecast["股票代码"].values:
                     fundamental_data['performance_repo'] = performance_forecast[performance_forecast["股票代码"] == stock_code].iloc[0].to_dict()
                     logger.info("✓ 业绩报表获取成功")
                 else:
+                    logger.info("未能查找到业绩报表")
                     fundamental_data['performance_repo'] = []
             except Exception as e:
                 logger.warning(f"获取业绩报表失败: {e}")
@@ -253,9 +257,12 @@ class WebStockAnalyzer:
             # 5. 分红配股信息
             try:
                 logger.info("正在获取分红配股信息...")
-                dividend_info = ak.stock_fhps_em(formatted_date)
+                dividend_info = ak.stock_fhps_detail_em(stock_code)
                 if not dividend_info.empty:
-                    fundamental_data['dividend_info'] = dividend_info[dividend_info["代码"] == stock_code].iloc[0].to_dict()
+                    dividend_info_list = []
+                    for i in range(min(10, len(dividend_info))):
+                        dividend_info_list.append(dividend_info.iloc[-(i+1)].to_dict())
+                    fundamental_data['dividend_info'] = dividend_info_list
                     logger.info("✓ 分红配股信息获取成功")
                 else:
                     fundamental_data['dividend_info'] = []
@@ -290,22 +297,43 @@ class WebStockAnalyzer:
                 'industry_analysis': {}
             }
 
-    def get_industry_analysis(self, stock_industry:str) -> dict:
+    def get_industry_analysis(self, industry_name:str) -> dict:
         """获取行业分析数据"""
         try:
             industry_data = {}
-            
+            current_time = datetime.today()
+            formatted_date = current_time.strftime("%Y%m%d")
+
             # 获取行业信息
             try:
                 industry_info = ak.stock_board_industry_name_em()
-                stock_industry = industry_info[industry_info["板块名称"] == "教育"].iloc[0].to_dict()
-                if not stock_industry.empty:
-                    industry_data['industry_info'] = stock_industry
-                else:
-                    industry_data['industry_info'] = {}
+                stock_industry_info = industry_info[industry_info["板块名称"] == industry_name].iloc[0].to_dict()
+                industry_data['industry_info'] = stock_industry_info
             except Exception as e:
                 logger.warning(f"获取行业信息失败: {e}")
                 industry_data['industry_info'] = {}
+            
+            try:
+                if current_time.hour >= 15:
+                    industry_pe_info = ak.stock_industry_pe_ratio_cninfo("国证行业分类", formatted_date)
+                else:
+                # 获取上一个交易日
+                    end_date = datetime.now().strftime('%Y%m%d')
+                    start_date = (datetime.now() - timedelta(days=30)).strftime('%Y%m%d')
+                    stock_data = ak.stock_zh_a_hist(
+                        symbol="000001",
+                        period="daily",
+                        start_date=start_date,
+                        end_date=end_date,
+                        adjust="qfq"
+                    )
+                    date_df = stock_data[['日期']].iloc[-2:].reset_index(drop=True)
+                    industry_pe_info = ak.stock_industry_pe_ratio_cninfo("国证行业分类", date_df.values[0][0].strftime('%Y%m%d'))
+                stock_industry_pe_info = industry_pe_info[industry_pe_info["行业名称"] == industry_name].iloc[0].to_dict()
+                industry_data['industry_pe_info'] = stock_industry_pe_info
+            except Exception as e:
+                logger.warning(f"获取行业市盈率失败: {e}")
+                industry_data['industry_pe_info'] = {}
             
             return industry_data
             
@@ -541,6 +569,8 @@ class WebStockAnalyzer:
                 
                 # 盈利能力评分
                 roe = financial_indicators.get('净资产收益率', 0)
+                if isinstance(roe, str) and roe.endswith("%"):
+                    roe = int(roe[:-1])
                 if roe > 15:
                     score += 10
                 elif roe > 10:
@@ -550,6 +580,8 @@ class WebStockAnalyzer:
                 
                 # 偿债能力评分
                 debt_ratio = financial_indicators.get('资产负债率', 100)
+                if isinstance(debt_ratio, str) and debt_ratio.endswith("%"):
+                    debt_ratio = int(debt_ratio[:-1])
                 if debt_ratio < 30:
                     score += 5
                 elif debt_ratio > 70:
@@ -557,6 +589,8 @@ class WebStockAnalyzer:
                 
                 # 成长性评分
                 revenue_growth = financial_indicators.get('营收同比增长率', 0)
+                if isinstance(revenue_growth, str) and revenue_growth.endswith("%"):
+                    revenue_growth = int(revenue_growth[:-1])
                 if revenue_growth > 20:
                     score += 10
                 elif revenue_growth > 10:

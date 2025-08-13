@@ -2,7 +2,8 @@ import pandas as pd
 
 from app.logger import logger
 from app.utils.config import GenerationConfig
-from app.services.prompt_builder import build_enhanced_ai_analysis_prompt, build_K_graph_table_prompt
+from app.services.prompt_builder import build_enhanced_ai_analysis_prompt, build_K_graph_table_prompt, build_news_section, \
+                                        build_news_summary_prompt
 
 def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
                          enable_streaming:bool=False, stream_callback:bool=None) -> str:
@@ -18,12 +19,15 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         sentiment_analysis = analysis_data['sentiment_analysis']
         price_info = analysis_data['price_info']
         
-        K_graph_conclusion = k_graph_analysis(analysis_data['k_graph_table'], generation_config)
+        no_thinking_config = generation_config.model_copy()
+        no_thinking_config.extra_parm = {"chat_template_kwargs": {"enable_thinking": False}}
+        K_graph_conclusion = k_graph_analysis(analysis_data['k_graph_table'], no_thinking_config)
+        news_summary = news_summarize(stock_name, sentiment_analysis, no_thinking_config)
         
         # 构建增强版AI分析提示词
         prompt = build_enhanced_ai_analysis_prompt(
             stock_code, stock_name, scores, technical_analysis, 
-            fundamental_data, sentiment_analysis, price_info, K_graph_conclusion
+            fundamental_data, news_summary, price_info, K_graph_conclusion
         )
         
         # 调用AI API（支持流式）
@@ -42,9 +46,7 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
     
 def k_graph_analysis(price_data:pd.DataFrame, generation_config:GenerationConfig) -> str:
     prompt = build_K_graph_table_prompt(price_data)
-    no_thinking_config = generation_config.model_copy()
-    no_thinking_config.extra_parm = {"chat_template_kwargs": {"enable_thinking": False}}
-    ai_response = _call_ai_api(prompt, no_thinking_config)
+    ai_response = _call_ai_api(prompt, generation_config)
     if ai_response:
         logger.info("✅ K graph表格读取完成")
         return ai_response
@@ -52,30 +54,57 @@ def k_graph_analysis(price_data:pd.DataFrame, generation_config:GenerationConfig
         logger.warning("⚠️ K graph表格读取失败")
         return None
     
-def _call_ai_api(prompt:str, generation_config:GenerationConfig, 
-                 enable_streaming:bool=False, stream_callback:bool=None) -> str:
-    """调用AI API - 支持流式输出"""
-    try:
-        if generation_config.server_name == 'openai':
-            result = _call_openai_api(prompt, generation_config, enable_streaming, stream_callback)
-            if result:
-                return result
-        
-        elif generation_config.server_name == 'anthropic':
-            result = _call_claude_api(prompt, generation_config, enable_streaming, stream_callback)
-            if result:
-                return result
+def news_summarize(stock_name:str, sentiment_analysis:dict, generation_config:GenerationConfig) -> str:
+    news_text = build_news_section(
+        sentiment_analysis.get('company_news', []),
+        sentiment_analysis.get('research_reports', [])
+    )
+    prompt = build_news_summary_prompt(stock_name, news_text)
+    ai_response = _call_ai_api(prompt, generation_config)
+    if ai_response:
+        logger.info("✅ 新闻总结完成")
+        return ai_response
+    else:
+        logger.warning("⚠️ 新闻总结失败")
+        return None
+    
+import time
+from typing import Optional
+
+def _call_ai_api(prompt: str, generation_config: GenerationConfig, 
+                 enable_streaming: bool = False, stream_callback = None) -> Optional[str]:
+    """调用AI API - 支持流式输出，失败时最多重试2次，共尝试3次"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            if generation_config.server_name == 'openai':
+                result = _call_openai_api(prompt, generation_config, enable_streaming, stream_callback)
+                if result is not None:
+                    return result
+
+            elif generation_config.server_name == 'anthropic':
+                result = _call_claude_api(prompt, generation_config, enable_streaming, stream_callback)
+                if result is not None:
+                    return result
                 
-        elif generation_config.server_name == 'zhipu':
-            result = _call_zhipu_api(prompt, generation_config, enable_streaming, stream_callback)
-            if result:
-                return result
+            elif generation_config.server_name == 'zhipu':
+                result = _call_zhipu_api(prompt, generation_config, enable_streaming, stream_callback)
+                if result is not None:
+                    return result
+
+            # 如果返回了 None，也视为失败，进行重试
+            logger.warning(f"API 调用返回 None，第 {attempt + 1} 次尝试失败，正在重试...")
+
+        except Exception as e:
+            logger.error(f"AI API调用异常（第 {attempt + 1} 次尝试）: {e}")
         
-        return None
-            
-    except Exception as e:
-        logger.error(f"AI API调用失败: {e}")
-        return None
+        # 如果不是最后一次尝试，等待一段时间再重试（指数退避可选）
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)  # 可选：加入指数退避
+        else:
+            logger.error("已尝试 3 次，全部失败，放弃重试。")
+    
+    return None
 
 def _call_openai_api(prompt:str, generation_config:GenerationConfig, 
                      enable_streaming:bool=False, stream_callback:bool=None) -> str:
