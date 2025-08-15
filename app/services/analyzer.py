@@ -151,7 +151,7 @@ class WebStockAnalyzer:
             return pd.DataFrame()
 
     def get_comprehensive_fundamental_data(self, stock_code:str) -> dict:
-        """获取25项综合财务指标数据"""
+        """获取项综合财务指标数据"""
         if stock_code in self.fundamental_cache:
             cache_time, data = self.fundamental_cache[stock_code]
             if datetime.now() - cache_time < self.fundamental_cache_duration:
@@ -162,7 +162,7 @@ class WebStockAnalyzer:
         
         try:
             fundamental_data = {}
-            logger.info(f"开始获取 {stock_code} 的25项综合财务指标...")
+            logger.info(f"开始获取 {stock_code} 的综合财务指标...")
             
             # 1. 基本信息
             try:
@@ -729,8 +729,8 @@ class WebStockAnalyzer:
             technical_analysis = calculate_technical_indicators(price_data)
             technical_score = calculate_technical_score(technical_analysis)
             
-            # 2. 获取25项财务指标和综合基本面分析
-            logger.info("正在进行25项财务指标分析...")
+            # 2. 获取财务指标和综合基本面分析
+            logger.info("正在进行财务指标分析...")
             fundamental_data = self.get_comprehensive_fundamental_data(stock_code)
             fundamental_score = self.calculate_fundamental_score(fundamental_data)
             

@@ -137,6 +137,10 @@ function handleSSEMessage(data) {
         case 'ai_stream':
             handleAIStream(eventData);
             break;
+
+        case 'ai_prompt':
+            setPromptContent(eventData.content);
+            break
             
         case 'error':
             addLog(`⚠️ SSE错误: ${eventData.error || '未知错误'}`, 'warning');
@@ -155,56 +159,23 @@ function handleAIStream(data) {
     // 获取或创建AI流式显示区域
     let aiStreamDiv = document.getElementById('aiStreamContent');
     if (!aiStreamDiv) {
-        // 在结果区域中查找AI分析部分
         const resultsContent = document.getElementById('resultsContent');
-        const aiSection = resultsContent.querySelector('.ai-analysis-content');
         
-        if (aiSection) {
-            // 如果找到了AI分析部分，创建流式内容区域
-            aiStreamDiv = document.createElement('div');
-            aiStreamDiv.id = 'aiStreamContent';
-            aiStreamDiv.style.cssText = `
-                border: 2px solid #ff9800;
-                border-radius: 8px;
-                padding: 16px;
-                margin: 16px 0;
-                background: rgba(255, 152, 0, 0.1);
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
-                min-height: 100px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-            `;
-            
-            // 添加流式标题
-            const streamTitle = document.createElement('h3');
-            streamTitle.textContent = '🤖 AI 深度分析 - 实时生成中...';
-            streamTitle.style.cssText = 'color: #f57c00; margin-bottom: 12px; font-size: 16px;';
-            
-            const streamContainer = document.createElement('div');
-            streamContainer.appendChild(streamTitle);
-            streamContainer.appendChild(aiStreamDiv);
-            
-            // 插入到结果区域
-            resultsContent.appendChild(streamContainer);
-        } else {
-            // 如果没有找到结果区域，创建临时显示区域
-            const resultsContent = document.getElementById('resultsContent');
-            resultsContent.insertAdjacentHTML('beforeend', `
-                <div style="line-height: 1.6;">
-                    <h2 style="color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 12px; margin-bottom: 20px;">
-                        📈 实时分析进行中...
-                        <span style="font-size: 12px; color: #28a745; font-weight: normal;">🌊 AI流式生成中</span>
-                    </h2>
-                    
-                    <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
-                        <h3 style="color: #f57c00; margin-bottom: 12px;">🤖 AI 深度分析 - 实时生成中...</h3>
-                        <div id="aiStreamContent" style="color: #5d4037; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;"></div>
-                    </div>
+        // 如果没有找到结果区域，创建临时显示区域
+        resultsContent.insertAdjacentHTML('beforeend', `
+            <div style="line-height: 1.6;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 12px; margin-bottom: 20px;">
+                    📈 实时分析进行中...
+                    <span style="font-size: 12px; color: #28a745; font-weight: normal;">🌊 AI流式生成中</span>
+                </h2>
+                
+                <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
+                    <h3 style="color: #f57c00; margin-bottom: 12px;">🤖 AI 深度分析 - 实时生成中...</h3>
+                    <div id="aiStreamContent" style="color: #5d4037; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;"></div>
                 </div>
-            `);
-            aiStreamDiv = document.getElementById('aiStreamContent');
-        }
+            </div>
+        `);
+        aiStreamDiv = document.getElementById('aiStreamContent');
     }
     
     // 添加AI流式内容
@@ -221,6 +192,7 @@ function handleAIStream(data) {
         }
     }
 }
+
 
 function animateScoreCards() {
     const cards = document.querySelectorAll('.score-card');
@@ -319,61 +291,133 @@ function updateDataQuality(data) {
     document.getElementById('dataQuality').style.display = 'grid';
 }
 
-// Results display
-function showLoading() {
+function showLoading(stockName) {
     document.getElementById('resultsContent').innerHTML = `
-        <div class="loading">
-            <div class="loading-spinner"></div>
-            <p>正在进行深度分析...</p>
-            <p style="font-size: 12px; color: #9ba2ab;">🌊 实时流式推送中</p>
-        </div>
-    `;
-}
+        <!-- 基本信息容器 永远显示 -->
+        <div id="basicInfoContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <!-- 基本信息 -->
+            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                <h4 style="color: #495057; margin-bottom: 8px;">基本信息</h4>
+                <p id="stockCodeDisplay">股票代码: --</p>
+                <p id="currentPriceDisplay">当前价格: --</p>
+                <p id="priceChangeDisplay">涨跌幅: --</p>
+            </div>
 
-function displayPartialResults(data) {
-    // 显示部分结果，比如基本信息
-    const resultsContent = document.getElementById('resultsContent');
-    
-    if (data.type === 'basic_info') {
-        resultsContent.innerHTML = `
-            <div style="line-height: 1.6;">
-                <h2 style="color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 12px; margin-bottom: 20px;">
-                    📈 ${data.stock_name || data.stock_code} 分析报告
-                    <span style="font-size: 12px; color: #6c757d; font-weight: normal;">🌊 实时流式分析中...</span>
-                </h2>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                        <h4 style="color: #495057; margin-bottom: 8px;">基本信息</h4>
-                        <p><strong>股票代码:</strong> ${data.stock_code}</p>
-                        <p><strong>当前价格:</strong> ¥${(data.current_price || 0).toFixed(2)}</p>
-                        <p><strong>涨跌幅:</strong> ${(data.price_change || 0).toFixed(2)}%</p>
-                    </div>
-                    
-                    <div style="background: #e3f2fd; padding: 16px; border-radius: 8px;">
-                        <h4 style="color: #495057; margin-bottom: 8px;">分析进度</h4>
-                        <p>🔄 正在获取技术指标...</p>
-                        <p>⏳ 正在分析财务数据...</p>
-                        <p>🌊 正在处理新闻情绪...</p>
-                    </div>
+            <!-- 技术指标 -->
+            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                <h4 style="color: #495057; margin-bottom: 8px;">技术指标</h4>
+                <p id="rsiDisplay">RSI: --</p>
+                <p id="trendDisplay">趋势: --</p>
+                <p id="macdDisplay">MACD: --</p>
+            </div>
+
+            <!-- 市场情绪 -->
+            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                <h4 style="color: #495057; margin-bottom: 8px;">市场情绪</h4>
+                <p id="sentimentTrendDisplay">情绪趋势: --</p>
+                <p id="newsCountDisplay">新闻数量: --</p>
+                <p id="confidenceDisplay">置信度: --</p>
+            </div>
+
+            <!-- 投资建议 -->
+            <div style="background: #e3f2fd; padding: 16px; border-radius: 8px;">
+                <h4 style="color: #495057; margin-bottom: 8px;">投资建议</h4>
+                <p id="recommendationDisplay">暂无数据</p>
+            </div>
+        </div>
+
+        <!-- LLM 选项卡 -->
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-btn" data-tab="llm-prompt">Prompt 查看</button>
+                <button class="tab-btn active" data-tab="llm-results">LLM 分析结果</button>
+            </div>
+
+            <div class="llm-tab-content active" id="llm-results">
+                <div id="aiStreamContainer">
+                    <h3 style="color:#f57c00;">🤖 AI 深度分析 - 实时生成中...</h3>
+                    <div id="aiStreamContent" style="color:#5d4037; font-size:14px; line-height:1.7; white-space:pre-wrap;"></div>
                 </div>
             </div>
-        `;
+
+            <div class="llm-tab-content" id="llm-prompt">
+                <p id="promptDisplay" style="color:#666;font-size:14px;">Prompt 将在分析完成后显示</p>
+            </div>
+        </div>
+    `;
+
+    initTabSwitching();
+}
+
+
+function initTabSwitching() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.llm-tab-content');
+
+    tabButtons.forEach(btn => {
+        btn.onclick = () => {
+            const targetId = btn.dataset.tab;
+
+            // 切换按钮样式
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // 显示对应 tab 内容
+            tabContents.forEach(tc => {
+                tc.id === targetId ? tc.classList.add('active') : tc.classList.remove('active');
+            });
+        };
+    });
+}
+
+function setPromptContent(llmPrompt) {
+    const promptTab = document.getElementById('llm-prompt');
+    promptTab.innerHTML = parseMarkdown(llmPrompt);
+    promptTab.classList.add('ai-analysis-content');
+    promptTab.style.whiteSpace = 'normal';
+}
+
+function parseMarkdown(text) {
+    if (typeof marked !== 'undefined') {
+        return marked.parse(text);
+    } else {
+        return simpleMarkdownParse(text);
     }
 }
 
+
+
+function displayPartialResults(data) {
+    if (data.type === 'basic_info') {
+        // 基本信息
+        document.getElementById('stockCodeDisplay').textContent = `股票代码: ${data.stock_code}`;
+        document.getElementById('currentPriceDisplay').textContent = `当前价格: ¥${(data.current_price || 0).toFixed(2)}`;
+        document.getElementById('priceChangeDisplay').textContent = `涨跌幅: ${(data.price_change || 0).toFixed(2)}%`;
+
+        // 分析进度
+        // 如果需要可以在 basicInfoContainer 里添加占位 p 标签，用于显示进度
+        if (document.getElementById('progressTech')) document.getElementById('progressTech').textContent = '🔄 技术指标获取中...';
+        if (document.getElementById('progressFinance')) document.getElementById('progressFinance').textContent = '⏳ 财务数据分析中...';
+        if (document.getElementById('progressNews')) document.getElementById('progressNews').textContent = '🌊 新闻情绪处理中...';
+    }
+}
+
+
 function displayResults(report) {
-    const resultsContent = document.getElementById('resultsContent');
-    
     // 检查是否有AI流式内容正在显示
     const existingAIStream = document.getElementById('aiStreamContent');
     let aiAnalysisHtml = '';
     
     if (existingAIStream && existingAIStream.textContent.trim()) {
-        // 如果有流式内容，使用流式内容并标记为完成
+        // 修改h3标题
         const streamTitle = existingAIStream.parentElement.querySelector('h3');
         if (streamTitle) {
             streamTitle.innerHTML = '🤖 AI 深度分析 <span style="color: #28a745; font-size: 12px;">✅ 生成完成</span>';
+        }
+        // 修改h2主标题
+        const h2Title = existingAIStream.closest('div').querySelector('h2');
+        if (h2Title) {
+            h2Title.innerHTML = 'LLM 深度分析报告';
         }
         
         // 将流式内容转换为markdown格式
@@ -396,53 +440,46 @@ function displayResults(report) {
 }
 
 function updateNonAIContent(report) {
-    // 更新非AI分析的其他内容
-    const resultsContent = document.getElementById('resultsContent');
-    
-    // 更新标题
-    const title = resultsContent.querySelector('h2');
-    if (title) {
-        title.innerHTML = `📈 ${report.stock_name || report.stock_code} 分析报告 <span style="font-size: 12px; color: #28a745; font-weight: normal;">✅ 流式分析完成</span>`;
+    // 更新标题状态
+    const statusEl = document.getElementById('analysisStatus');
+    if (statusEl) statusEl.textContent = '✅ 流式分析完成';
+
+    // 基本信息
+    document.getElementById('stockCodeDisplay').textContent = `股票代码: ${report.stock_code}`;
+    document.getElementById('currentPriceDisplay').textContent = `当前价格: ¥${(report.price_info?.current_price || 0).toFixed(2)}`;
+    document.getElementById('priceChangeDisplay').textContent = `涨跌幅: ${(report.price_info?.price_change || 0).toFixed(2)}%`;
+
+    // 技术指标
+    document.getElementById('rsiDisplay').textContent = `RSI: ${(report.technical_analysis?.rsi || 0).toFixed(1)}`;
+    document.getElementById('trendDisplay').textContent = `趋势: ${report.technical_analysis?.ma_trend || '未知'}`;
+    document.getElementById('macdDisplay').textContent = `MACD: ${report.technical_analysis?.macd_signal || '未知'}`;
+
+    // 市场情绪
+    document.getElementById('sentimentTrendDisplay').textContent = `情绪趋势: ${report.sentiment_analysis?.sentiment_trend || '中性'}`;
+    document.getElementById('newsCountDisplay').textContent = `新闻数量: ${report.sentiment_analysis?.total_analyzed || 0} 条`;
+    document.getElementById('confidenceDisplay').textContent = `置信度: ${((report.sentiment_analysis?.confidence_score || 0) * 100).toFixed(1)}%`;
+
+    // 投资建议
+    document.getElementById('recommendationDisplay').textContent = report.recommendation || '数据不足';
+
+    // LLM 流式内容
+    if (report.ai_content) {
+        const aiStream = document.getElementById('aiStreamContent');
+        aiStream.textContent = report.ai_content;
+        aiStream.scrollTop = aiStream.scrollHeight;
     }
-    
-    // 更新基本信息
-    const basicInfoDiv = resultsContent.querySelector('div[style*="grid-template-columns"]');
-    if (basicInfoDiv) {
-        basicInfoDiv.innerHTML = `
-            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                <h4 style="color: #495057; margin-bottom: 8px;">基本信息</h4>
-                <p><strong>股票代码:</strong> ${report.stock_code}</p>
-                <p><strong>当前价格:</strong> ¥${(report.price_info?.current_price || 0).toFixed(2)}</p>
-                <p><strong>涨跌幅:</strong> ${(report.price_info?.price_change || 0).toFixed(2)}%</p>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                <h4 style="color: #495057; margin-bottom: 8px;">技术指标</h4>
-                <p><strong>RSI:</strong> ${(report.technical_analysis?.rsi || 0).toFixed(1)}</p>
-                <p><strong>趋势:</strong> ${report.technical_analysis?.ma_trend || '未知'}</p>
-                <p><strong>MACD:</strong> ${report.technical_analysis?.macd_signal || '未知'}</p>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                <h4 style="color: #495057; margin-bottom: 8px;">市场情绪</h4>
-                <p><strong>情绪趋势:</strong> ${report.sentiment_analysis?.sentiment_trend || '中性'}</p>
-                <p><strong>新闻数量:</strong> ${report.sentiment_analysis?.total_analyzed || 0} 条</p>
-                <p><strong>置信度:</strong> ${((report.sentiment_analysis?.confidence_score || 0) * 100).toFixed(1)}%</p>
-            </div>
-        `;
+
+    // Prompt
+    if (report.prompt) {
+        document.getElementById('promptDisplay').textContent = report.prompt;
     }
-    
-    // 更新投资建议
-    const recommendationDiv = resultsContent.querySelector('div[style*="background: #e3f2fd"]');
-    if (recommendationDiv) {
-        const recommendationText = recommendationDiv.querySelector('p');
-        if (recommendationText) {
-            recommendationText.textContent = report.recommendation || '数据不足';
-        }
-    }
-    
-    document.getElementById('exportBtn').style.display = 'inline-flex';
+
+    // 显示导出按钮
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) exportBtn.style.display = 'inline-flex';
 }
+
+
 
 // 简单的markdown解析器（备用方案）
 function simpleMarkdownParse(text) {
@@ -582,9 +619,22 @@ function onAnalysisError(data) {
 // Analysis functions with SSE support
 async function analyzeSingleStock() {
     const stockCode = document.getElementById('stockCode').value.trim();
+    let positionPercent = document.getElementById('positionPercent').value;
+    let avgPrice = document.getElementById('avgPrice').value;
     if (!stockCode) {
         addLog('请输入股票代码', 'warning');
         return;
+    }
+    if (!positionPercent) {
+        addLog('默认未买入');
+        positionPercent = 0;
+        avgPrice = -1;
+    }
+    else if (positionPercent > 0) {
+        if (!avgPrice) {
+            addLog('请输入持仓均价', 'warning');
+            return;
+        }
     }
 
     if (isAnalyzing) {
@@ -609,6 +659,8 @@ async function analyzeSingleStock() {
             },
             body: JSON.stringify({
                 stock_code: stockCode,
+                positionPercent: positionPercent,
+                avgPrice: avgPrice,
                 enable_streaming: document.getElementById('enableStreaming').checked,
                 client_id: currentClientId
             })

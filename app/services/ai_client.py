@@ -1,12 +1,13 @@
 import pandas as pd
 
 from app.logger import logger
+from app.utils.sse_manager import StreamingSender
 from app.utils.config import GenerationConfig
 from app.services.prompt_builder import build_enhanced_ai_analysis_prompt, build_K_graph_table_prompt, build_news_section, \
                                         build_news_summary_prompt
 
 def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
-                         enable_streaming:bool=False, stream_callback:bool=None) -> str:
+                         enable_streaming:bool=False, streamer:StreamingSender=None) -> str:
     """生成AI增强分析 - 支持流式输出"""
     try:
         logger.info("🤖 开始AI深度分析...")
@@ -27,11 +28,23 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         # 构建增强版AI分析提示词
         prompt = build_enhanced_ai_analysis_prompt(
             stock_code, stock_name, scores, technical_analysis, 
-            fundamental_data, news_summary, price_info, K_graph_conclusion
+            fundamental_data, news_summary, price_info, K_graph_conclusion,
+            analysis_data["avg_price"], analysis_data["position_percent"]
         )
+        streamer.send_prompt(prompt)
+        
+        # 设置AI流式内容处理
+        ai_content_buffer = ""
+        
+        def ai_stream_callback(content):
+            """AI流式内容回调"""
+            nonlocal ai_content_buffer
+            ai_content_buffer += content
+            # 实时发送AI流式内容
+            streamer.send_ai_stream(content)
         
         # 调用AI API（支持流式）
-        ai_response = _call_ai_api(prompt, generation_config, enable_streaming, stream_callback)
+        ai_response = _call_ai_api(prompt, generation_config, enable_streaming, ai_stream_callback)
         
         if ai_response:
             logger.info("✅ AI深度分析完成")
