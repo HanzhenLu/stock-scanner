@@ -554,6 +554,42 @@ body {
     text-decoration: underline;
 }
 
+.tab-container {
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.tab-buttons {
+    display: flex;
+    background: #f6f8fa;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-weight: bold;
+}
+
+.tab-btn.active {
+    background: white;
+    border-bottom: 2px solid #0366d6;
+}
+
+.llm-tab-content {
+    display: none;
+    padding: 12px;
+}
+
+.llm-tab-content.active {
+    display: block;
+}
+
+
+
 @media (max-width: 640px) {
     .container {
         padding: 16px;

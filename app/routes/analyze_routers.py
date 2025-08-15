@@ -21,6 +21,8 @@ def analyze_stock_stream():
 
         data = request.json
         stock_code = data.get('stock_code', '').strip()
+        position_percent = data.get('positionPercent')
+        avg_price = data.get('avgPrice')
         enable_streaming = data.get('enable_streaming', False)
         client_id = data.get('client_id')
 
@@ -41,7 +43,7 @@ def analyze_stock_stream():
 
         def run_analysis():
             try:
-                analyze_stock_streaming(stock_code, enable_streaming, client_id)
+                analyze_stock_streaming(stock_code, enable_streaming, client_id, position_percent, avg_price)
                 logger.info(f"股票流式分析完成: {stock_code}")
             except Exception as e:
                 logger.error(f"股票流式分析失败: {stock_code}, 错误: {e}")

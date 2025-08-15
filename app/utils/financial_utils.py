@@ -308,6 +308,10 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
             recent_data = price_data.iloc[-volume_window:]
             recent_volume = safe_float(price_data['volume'].iloc[-1])
             avg_volume = safe_float(recent_data['volume'].mean(), recent_volume)
+            technical_analysis['volume_status'] = {
+                '当天交易量': recent_volume,
+                f'近{volume_window}天平均交易量': avg_volume
+            }
             
             if 'change_pct' in price_data.columns:
                 price_change = safe_float(price_data['change_pct'].iloc[-1])
@@ -320,11 +324,11 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
             
             avg_volume = safe_float(avg_volume, recent_volume)
             if recent_volume > avg_volume * 1.5:
-                technical_analysis['volume_status'] = '放量上涨' if price_change > 0 else '放量下跌'
+                technical_analysis['volume_status']['判断'] = '放量上涨' if price_change > 0 else '放量下跌'
             elif recent_volume < avg_volume * 0.5:
-                technical_analysis['volume_status'] = '缩量调整'
+                technical_analysis['volume_status']['判断'] = '缩量调整'
             else:
-                technical_analysis['volume_status'] = '温和放量'
+                technical_analysis['volume_status']['判断'] = '温和放量'
             
         except Exception as e:
             technical_analysis['volume_status'] = '数据不足'
@@ -371,9 +375,9 @@ def calculate_technical_score(technical_analysis:dict) -> float:
             score -= 5
         
         volume_status = technical_analysis.get('volume_status', '数据不足')
-        if '放量上涨' in volume_status:
+        if '放量上涨' in volume_status["判断"]:
             score += 10
-        elif '放量下跌' in volume_status:
+        elif '放量下跌' in volume_status["判断"]:
             score -= 10
         
         score = max(0, min(100, score))
