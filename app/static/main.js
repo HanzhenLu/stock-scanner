@@ -139,7 +139,7 @@ function handleSSEMessage(data) {
             break;
 
         case 'ai_prompt':
-            setPromptContent(eventData.content);
+            setPromptContent(eventData.element_id, eventData.content);
             break
             
         case 'error':
@@ -329,8 +329,9 @@ function showLoading(stockName) {
         <!-- LLM 选项卡 -->
         <div class="tab-container">
             <div class="tab-buttons">
-                <button class="tab-btn" data-tab="llm-prompt">Prompt 查看</button>
-                <button class="tab-btn active" data-tab="llm-results">LLM 分析结果</button>
+                <button class="tab-btn" data-tab="value-prompt">价值分析 Prompt 查看</button>
+                <button class="tab-btn" data-tab="llm-prompt">总结 Prompt 查看</button>
+                <button class="tab-btn active" data-tab="llm-results">LLM 总结</button>
             </div>
 
             <div class="llm-tab-content active" id="llm-results">
@@ -341,6 +342,10 @@ function showLoading(stockName) {
             </div>
 
             <div class="llm-tab-content" id="llm-prompt">
+                <p id="promptDisplay" style="color:#666;font-size:14px;">Prompt 将在分析完成后显示</p>
+            </div>
+
+            <div class="llm-tab-content" id="value-prompt">
                 <p id="promptDisplay" style="color:#666;font-size:14px;">Prompt 将在分析完成后显示</p>
             </div>
         </div>
@@ -370,8 +375,8 @@ function initTabSwitching() {
     });
 }
 
-function setPromptContent(llmPrompt) {
-    const promptTab = document.getElementById('llm-prompt');
+function setPromptContent(element_id, llmPrompt) {
+    const promptTab = document.getElementById(element_id);
     promptTab.innerHTML = parseMarkdown(llmPrompt);
     promptTab.classList.add('ai-analysis-content');
     promptTab.style.whiteSpace = 'normal';
@@ -619,8 +624,8 @@ function onAnalysisError(data) {
 // Analysis functions with SSE support
 async function analyzeSingleStock() {
     const stockCode = document.getElementById('stockCode').value.trim();
-    let positionPercent = document.getElementById('positionPercent').value;
-    let avgPrice = document.getElementById('avgPrice').value;
+    let positionPercent = parseFloat(document.getElementById('positionPercent').value);
+    let avgPrice = parseFloat(document.getElementById('avgPrice').value);
     if (!stockCode) {
         addLog('请输入股票代码', 'warning');
         return;

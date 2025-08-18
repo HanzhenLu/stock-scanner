@@ -1,10 +1,12 @@
 import pandas as pd
+import time
+from typing import Optional
 
 from app.logger import logger
 from app.utils.sse_manager import StreamingSender
 from app.utils.config import GenerationConfig
 from app.services.prompt_builder import build_enhanced_ai_analysis_prompt, build_K_graph_table_prompt, build_news_section, \
-                                        build_news_summary_prompt
+                                        build_news_summary_prompt, build_value_prompt
 
 def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
                          enable_streaming:bool=False, streamer:StreamingSender=None) -> str:
@@ -22,16 +24,17 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         
         no_thinking_config = generation_config.model_copy()
         no_thinking_config.extra_parm = {"chat_template_kwargs": {"enable_thinking": False}}
-        K_graph_conclusion = k_graph_analysis(analysis_data['k_graph_table'], no_thinking_config)
+        K_graph_conclusion = k_graph_analysis(stock_name, analysis_data['k_graph_table'], no_thinking_config)
         news_summary = news_summarize(stock_name, sentiment_analysis, no_thinking_config)
+        value_analysis = value_analyze(stock_code, stock_name, fundamental_data, price_info, no_thinking_config, streamer)
         
         # 构建增强版AI分析提示词
         prompt = build_enhanced_ai_analysis_prompt(
             stock_code, stock_name, scores, technical_analysis, 
-            fundamental_data, news_summary, price_info, K_graph_conclusion,
+            fundamental_data, news_summary, price_info, K_graph_conclusion, value_analysis,
             analysis_data["avg_price"], analysis_data["position_percent"]
         )
-        streamer.send_prompt(prompt)
+        streamer.send_prompt("llm-prompt", prompt)
         
         # 设置AI流式内容处理
         ai_content_buffer = ""
@@ -57,8 +60,8 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         logger.error(f"AI分析失败: {e}")
         return None
     
-def k_graph_analysis(price_data:pd.DataFrame, generation_config:GenerationConfig) -> str:
-    prompt = build_K_graph_table_prompt(price_data)
+def k_graph_analysis(stock_name:str, price_data:pd.DataFrame, generation_config:GenerationConfig) -> str:
+    prompt = build_K_graph_table_prompt(stock_name, price_data)
     ai_response = _call_ai_api(prompt, generation_config)
     if ai_response:
         logger.info("✅ K graph表格读取完成")
@@ -81,8 +84,16 @@ def news_summarize(stock_name:str, sentiment_analysis:dict, generation_config:Ge
         logger.warning("⚠️ 新闻总结失败")
         return None
     
-import time
-from typing import Optional
+def value_analyze(stock_code:str, stock_name:str, fundamental_data:dict, price_info:dict, generation_config:GenerationConfig, streamer:StreamingSender) -> str:
+    prompt = build_value_prompt(stock_code, stock_name, fundamental_data, price_info)
+    streamer.send_prompt("value-prompt", prompt)
+    ai_response = _call_ai_api(prompt, generation_config)
+    if ai_response:
+        logger.info("✅ 价值分析完成")
+        return ai_response
+    else:
+        logger.warning("⚠️ 价值分析失败")
+        return None
 
 def _call_ai_api(prompt: str, generation_config: GenerationConfig, 
                  enable_streaming: bool = False, stream_callback = None) -> Optional[str]:
@@ -110,6 +121,7 @@ def _call_ai_api(prompt: str, generation_config: GenerationConfig,
 
         except Exception as e:
             logger.error(f"AI API调用异常（第 {attempt + 1} 次尝试）: {e}")
+            time.sleep(1)
         
         # 如果不是最后一次尝试，等待一段时间再重试（指数退避可选）
         if attempt < max_retries - 1:

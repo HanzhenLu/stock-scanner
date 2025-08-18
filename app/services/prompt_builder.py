@@ -82,18 +82,17 @@ def _get_analysis_instruction():
 def build_enhanced_ai_analysis_prompt(
     stock_code: str, stock_name: str, scores: dict,
     technical_analysis: dict, fundamental_data: dict,
-    news_summary: str, price_info: dict, K_graph_description: str,
+    news_summary: str, price_info: dict, K_graph_description: str, value_analysis: str,
     avg_price: float, position_percent: float
 ) -> str:
 
-    financial_text = _build_financial_section(fundamental_data.get('financial_indicators', {}))
     if position_percent > 0:
         user_info = f'''* 成本价：{avg_price}
 * 当前仓位：{position_percent}%'''
     else:
         user_info = "当前未持有"
     
-    prompt = f"""你是一位资深的股票分析师，当前时间为{datetime.datetime.now()}，基于以下详细数据对股票进行深度分析：
+    prompt = f"""你是一位资深的股票分析师，当前时间为{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}，基于以下详细数据对股票进行深度分析：
 # 股票基本信息
 * 股票代码：{stock_code}
 * 股票名称：{stock_name}
@@ -109,24 +108,14 @@ def build_enhanced_ai_analysis_prompt(
 {K_graph_description}
 
 # 技术分析详情：
-* 均线趋势：ExpMA5:{technical_analysis.get('ma5', '未知'):5.5} ExpMA10:{technical_analysis.get('ma10', '未知'):5.5} ExpMA20:{technical_analysis.get('ma20', '未知'):5.5}
+* 均线趋势：ExpMA5:{technical_analysis.get('ma5', '未知'):.4} ExpMA10:{technical_analysis.get('ma10', '未知'):.4} ExpMA20:{technical_analysis.get('ma20', '未知'):.4} ExpMA60:{technical_analysis.get('ma60', '未知'):.4}
 * RSI指标：{technical_analysis.get('rsi', '未知'):5.5}
-* MACD信号：{technical_analysis.get('macd_signal', '未知')} dif:{technical_analysis.get('dif', '未知'):5.5} dea:{technical_analysis.get('dea', '未知'):5.5}
+* MACD信号：{technical_analysis.get('macd_signal', '未知')} dif:{technical_analysis.get('dif', '未知'):.3} dea:{technical_analysis.get('dea', '未知'):.3}
 * 布林带位置：{technical_analysis.get('bb_position', '未知'):5.5}
 * 成交量状态：{technical_analysis.get('volume_status', '未知')}
 
-{financial_text}
-
-# 估值指标
-{format_dict_data(fundamental_data.get('valuation', {}))}
-
-# 业绩预告
-共{min(len(fundamental_data.get('performance_forecast', [])), MAX_LIST_ITEMS)}条业绩预告
-{format_list_data(fundamental_data.get('performance_forecast', [])[:MAX_LIST_ITEMS], 20)}
-
-# 分红配股
-共{min(len(fundamental_data.get('dividend_info', [])), MAX_LIST_ITEMS)}条分红配股信息
-{format_list_data(fundamental_data.get('dividend_info', [])[:MAX_LIST_ITEMS], 20)}
+# 价值分析
+{value_analysis}
 
 # 行业信息
 {fundamental_data.get('industry_analysis', {})}
@@ -138,8 +127,8 @@ def build_enhanced_ai_analysis_prompt(
 
     return prompt
 
-def build_K_graph_table_prompt(K_graph_table:pd.DateOffset) -> str:
-    prompt = f'''请作为一位资深的股票分析师，基于30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
+def build_K_graph_table_prompt(stock_name:str, K_graph_table:pd.DateOffset) -> str:
+    prompt = f'''请作为一位资深的股票分析师，基于{stock_name}30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
 表格如下
 {str(K_graph_table)}
 你首先需要对这个表格的内容进行描述；
@@ -163,4 +152,39 @@ def build_news_summary_prompt(stock_name:str, news:str) -> str:
 ## 研究报告摘要
 ## 市场环境
 '''
+    return prompt
+
+def build_value_prompt(stock_code: str, stock_name: str, fundamental_data: dict, price_info: dict) -> str:
+    financial_text = _build_financial_section(fundamental_data.get('financial_indicators', {}))
+    prompt = f"""你是一位资深的股票分析师，当前时间为{datetime.datetime.now()}，基于以下详细数据对股票进行深度分析：
+# 股票基本信息
+* 股票代码：{stock_code}
+* 股票名称：{stock_name}
+* 当前价格：{price_info.get('current_price', '未知'):5.5}元
+* 涨跌幅：{price_info.get('price_change', '未知'):5.5}%
+* 成交量比率：{price_info.get('volume_ratio', '未知'):5.5}
+* 波动率：{price_info.get('volatility', '未知'):5.5}%
+
+{financial_text}
+
+# 估值指标
+{format_dict_data(fundamental_data.get('valuation', {}))}
+
+# 业绩报表
+{fundamental_data.get('performance_repo')}
+
+# 分红配股
+共{min(len(fundamental_data.get('dividend_info', [])), MAX_LIST_ITEMS)}条分红配股信息
+{format_list_data(fundamental_data.get('dividend_info', [])[:MAX_LIST_ITEMS], 20)}
+
+# 行业信息
+{fundamental_data.get('industry_analysis', {})}
+
+请基于以上信息，分析公司的财务状况与分红政策，最后给出综合价值判断；
+注意，请直接输出分析内容，不需要添加包括打招呼在内的任何额外内容！
+请包含以下几个章节
+## 公司基本面
+## 分红政策
+## 价值判断"""
+
     return prompt
