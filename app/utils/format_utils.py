@@ -1,8 +1,9 @@
 import json
 import math
+import sys
 import numpy as np
 
-def format_dict_data(data_dict:dict, max_items:int=5) -> str:
+def format_dict_data(data_dict:dict, max_items:int=sys.maxsize) -> str:
     """格式化字典数据"""
     if not data_dict:
         return "无数据"
@@ -15,7 +16,7 @@ def format_dict_data(data_dict:dict, max_items:int=5) -> str:
     
     return formatted if formatted else "无有效数据"
 
-def format_list_data(data_list:list, max_items:int=3) -> str:
+def format_list_data(data_list:list, max_items:int=sys.maxsize) -> str:
     """格式化列表数据"""
     if not data_list:
         return "无数据"

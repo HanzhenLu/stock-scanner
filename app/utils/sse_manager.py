@@ -137,7 +137,8 @@ class StreamingSender:
             'content': content
         })
         
-    def send_prompt(self, prompt:str):
+    def send_prompt(self, element_id:str, prompt:str):
         self.sse_manager.send_to_client(self.client_id, 'ai_prompt', {
+            'element_id': element_id,
             'content': prompt
         })

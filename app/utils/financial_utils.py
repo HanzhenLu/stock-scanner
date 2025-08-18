@@ -1,5 +1,6 @@
 import math
 import pandas as pd
+import datetime
 
 from app.logger import logger
 
@@ -22,47 +23,6 @@ def safe_get(raw_dict:dict, key, default:float=-1) -> float:
         return safe_float(value, default)
     except (ValueError, TypeError):
         return default
-
-def calculate_core_financial_indicators(raw_data:dict) -> dict:
-    """计算25项核心财务指标（修正版本）"""
-    try:
-        indicators = {}
-        
-        # 盈利能力指标
-        indicators['净利润率'] = raw_data.get('销售净利率')
-        indicators['净资产收益率'] = raw_data.get('净资产收益率')
-        indicators['总资产净利润率'] = raw_data.get('总资产净利润率(%)')
-        indicators['销售毛利率'] = raw_data.get('销售毛利率(%)')
-
-        # 偿债能力指标
-        indicators['流动比率'] = raw_data.get('流动比率')
-        indicators['速动比率'] = raw_data.get('速动比率')
-        indicators['资产负债率'] = raw_data.get('资产负债率')
-        indicators['产权比率'] = raw_data.get('产权比率')
-        indicators['利息支付倍数'] = raw_data.get('利息支付倍数')
-
-        # 营运能力指标
-        indicators['总资产周转率(次)'] = raw_data.get('总资产周转率(次)')
-        indicators['存货周转率(次)'] = raw_data.get('存货周转率(次)')
-        indicators['应收账款周转率(次)'] = raw_data.get('应收账款周转率(次)')
-        indicators['流动资产周转率(天)'] = raw_data.get('流动资产周转率(天)')
-        indicators['固定资产周转率(次)'] = raw_data.get('固定资产周转率(次)')
-
-        # 发展能力指标
-        indicators['营收同比增长率'] = raw_data.get('营业总收入同比增长率')
-        indicators['净利润同比增长率'] = raw_data.get('净利润同比增长率')
-        indicators['总资产增长率'] = raw_data.get('总资产增长率(%)')
-        indicators['净资产增长率'] = raw_data.get('净资产增长率(%)')
-        
-        # 过滤掉无效的指标
-        valid_indicators = {k: v for k, v in indicators.items() if v not in [0, None, 'nan', -1]}
-        
-        logger.info(f"✓ 成功计算 {len(valid_indicators)} 项有效财务指标")
-        return valid_indicators
-        
-    except Exception as e:
-        logger.error(f"计算核心财务指标失败: {e}")
-        return {}
     
 def rolling_mean_tail(series:pd.DataFrame, window:int, default:float) -> float:
     if len(series) < window:
@@ -198,10 +158,12 @@ def calculate_technical_indicators(price_data:pd.DataFrame) -> dict:
             ma5 = close.ewm(span=5, adjust=False).mean().iloc[-1]
             ma10 = close.ewm(span=10, adjust=False).mean().iloc[-1]
             ma20 = close.ewm(span=20, adjust=False).mean().iloc[-1]
+            ma60 = close.ewm(span=60, adjust=False).mean().iloc[-1]
             
             technical_analysis['ma5'] = ma5
             technical_analysis['ma10'] = ma10
             technical_analysis['ma20'] = ma20
+            technical_analysis['ma60'] = ma60
             
             if latest_price > ma5 > ma10 > ma20:
                 technical_analysis['ma_trend'] = '多头排列'
