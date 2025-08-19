@@ -1,0 +1,50 @@
+<!-- 基本信息容器 永远显示 -->
+<div id="basicInfoContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <!-- 基本信息 -->
+    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+        <h4 style="color: #495057; margin-bottom: 8px;">基本信息</h4>
+        <p id="stockCodeDisplay">股票代码: --</p>
+        <p id="currentPriceDisplay">当前价格: --</p>
+        <p id="priceChangeDisplay">涨跌幅: --</p>
+    </div>
+
+    <!-- 技术指标 -->
+    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+        <h4 style="color: #495057; margin-bottom: 8px;">技术指标</h4>
+        <p id="rsiDisplay">RSI: --</p>
+        <p id="trendDisplay">趋势: --</p>
+        <p id="macdDisplay">MACD: --</p>
+    </div>
+
+    <!-- 市场情绪 -->
+    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+        <h4 style="color: #495057; margin-bottom: 8px;">市场情绪</h4>
+        <p id="sentimentTrendDisplay">情绪趋势: --</p>
+        <p id="newsCountDisplay">新闻数量: --</p>
+        <p id="confidenceDisplay">置信度: --</p>
+    </div>
+</div>
+
+<!-- LLM 选项卡 -->
+<div class="tab-container">
+    <div class="tab-buttons">
+        <button class="tab-btn" data-tab="value-prompt">价值分析 Prompt 查看</button>
+        <button class="tab-btn" data-tab="llm-prompt">总结 Prompt 查看</button>
+        <button class="tab-btn active" data-tab="llm-results">LLM 总结</button>
+    </div>
+
+    <div class="llm-tab-content active" id="llm-results">
+        <div id="aiStreamContainer">
+            <h3 style="color:#f57c00;">🤖 AI 深度分析 - 实时生成中...</h3>
+            <div id="aiStreamContent" style="color:#5d4037; font-size:14px; line-height:1.7; white-space:pre-wrap;"></div>
+        </div>
+    </div>
+
+    <div class="llm-tab-content" id="llm-prompt">
+        <p id="promptDisplay" style="color:#666;font-size:14px;">Prompt 将在分析完成后显示</p>
+    </div>
+
+    <div class="llm-tab-content" id="value-prompt">
+        <p id="valuepromptDisplay" style="color:#666;font-size:14px;">Prompt 将在分析完成后显示</p>
+    </div>
+</div>

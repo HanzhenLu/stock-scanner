@@ -84,7 +84,6 @@ def main():
     print("   - connected: 连接确认")
     print("   - log: 日志消息")
     print("   - progress: 进度更新")
-    print("   - scores_update: 评分更新")
     print("   - data_quality_update: 数据质量更新")
     print("   - partial_result: 部分结果")
     print("   - final_result: 最终结果")

@@ -1,8 +1,8 @@
-from app.services.streaming_analyzer import analyze_stock_streaming, analyze_batch_streaming
 from app.utils.decorators import require_auth
+from app.utils.sse_manager import StreamingSender
 from app.logger import logger
 from app.container.analyzer import get_analyzer
-from app.container import analysis_manager, executor
+from app.container import analysis_manager, executor, sse_manager
 
 from flask import Blueprint, request, jsonify
 
@@ -23,7 +23,6 @@ def analyze_stock_stream():
         stock_code = data.get('stock_code', '').strip()
         position_percent = data.get('positionPercent')
         avg_price = data.get('avgPrice')
-        enable_streaming = data.get('enable_streaming', False)
         client_id = data.get('client_id')
 
         if not stock_code:
@@ -43,7 +42,8 @@ def analyze_stock_stream():
 
         def run_analysis():
             try:
-                analyze_stock_streaming(stock_code, enable_streaming, client_id, position_percent, avg_price)
+                streamer = StreamingSender(client_id, sse_manager)
+                analyzer.analyze_stock_with_streaming(stock_code, position_percent, avg_price, streamer)
                 logger.info(f"股票流式分析完成: {stock_code}")
             except Exception as e:
                 logger.error(f"股票流式分析失败: {stock_code}, 错误: {e}")
@@ -103,10 +103,7 @@ def batch_analyze_stream():
         # 异步执行批量分析
         def run_batch_analysis():
             try:
-                global currentAnalysis
-                results = analyze_batch_streaming(stock_codes, client_id)
-                currentAnalysis = results
-                logger.info(f"批量流式分析完成，成功分析 {len(results)}/{len(stock_codes)} 只股票")
+                analyzer.analyze_batch_streaming(stock_codes, client_id)
             except Exception as e:
                 logger.error(f"批量流式分析失败: {e}")
         

@@ -6,8 +6,11 @@ from datetime import datetime, timedelta
 
 from app.logger import logger
 from app.utils.config import load_config
-from app.utils.financial_utils import (get_price_info, calculate_technical_indicators, calculate_technical_score)
-from app.services.ai_client import generate_ai_analysis
+from app.utils.financial_utils import (get_price_info, calculate_technical_indicators, get_K_graph_table)
+from app.utils.sse_manager import StreamingSender
+from app.container import sse_manager
+from app.services.ai_client import generate_ai_analysis, news_summarize, k_graph_analysis, value_analyze
+from app.services.prompt_builder import build_value_prompt
 
 class WebStockAnalyzer:
     """Web版增强股票分析器"""
@@ -331,7 +334,7 @@ class WebStockAnalyzer:
                 industry_pe_info = ak.stock_industry_pe_ratio_cninfo("国证行业分类", pe_date)
                 if industry_name not in industry_pe_info["行业名称"].to_list():
                     industry_pe_info = ak.stock_industry_pe_ratio_cninfo("证监会行业分类", pe_date)
-                if industry_name not in industry_pe_info["行业名称"].to_list():
+                if industry_name in industry_pe_info["行业名称"].to_list():
                     stock_industry_pe_info = industry_pe_info[industry_pe_info["行业名称"] == industry_name].iloc[0].to_dict()
                     industry_data['industry_pe_info'] = stock_industry_pe_info
                 else:
@@ -569,109 +572,6 @@ class WebStockAnalyzer:
                 'total_analyzed': '分析失败'
             }
 
-    def calculate_fundamental_score(self, fundamental_data:dict) -> float:
-        """计算基本面得分"""
-        try:
-            score = 50
-            
-            # 财务指标评分
-            financial_indicators = fundamental_data.get('financial_indicators', {})
-            if len(financial_indicators) >= 15:  # 有足够的财务指标
-                score += 20
-                
-                # 盈利能力评分
-                roe = financial_indicators.get('净资产收益率', 0)
-                if isinstance(roe, str) and roe.endswith("%"):
-                    roe = float(roe[:-1])
-                if roe > 15:
-                    score += 10
-                elif roe > 10:
-                    score += 5
-                elif roe < 5:
-                    score -= 5
-                
-                # 偿债能力评分
-                debt_ratio = financial_indicators.get('资产负债率', 100)
-                if isinstance(debt_ratio, str) and debt_ratio.endswith("%"):
-                    debt_ratio = float(debt_ratio[:-1])
-                if debt_ratio < 30:
-                    score += 5
-                elif debt_ratio > 70:
-                    score -= 10
-                
-                # 成长性评分
-                revenue_growth = financial_indicators.get('营收同比增长率', 0)
-                if isinstance(revenue_growth, str) and revenue_growth.endswith("%"):
-                    revenue_growth = float(revenue_growth[:-1])
-                if revenue_growth > 20:
-                    score += 10
-                elif revenue_growth > 10:
-                    score += 5
-                elif revenue_growth < -10:
-                    score -= 10
-            
-            # 估值评分
-            valuation = fundamental_data.get('valuation', {})
-            if valuation:
-                score += 10
-            
-            # 业绩预告评分
-            performance_forecast = fundamental_data.get('performance_forecast', [])
-            if performance_forecast:
-                score += 10
-            
-            score = max(0, min(100, score))
-            return score
-            
-        except Exception as e:
-            logger.error(f"基本面评分失败: {str(e)}")
-            return -1
-
-    def calculate_sentiment_score(self, sentiment_analysis:dict) -> float:
-        """计算情绪分析得分"""
-        try:
-            overall_sentiment = sentiment_analysis['overall_sentiment']
-            confidence_score = sentiment_analysis['confidence_score']
-            total_analyzed = sentiment_analysis['total_analyzed']
-            
-            # 基础得分：将情绪得分从[-1,1]映射到[0,100]
-            base_score = (overall_sentiment + 1) * 50
-            
-            # 置信度调整
-            confidence_adjustment = confidence_score * 10
-            
-            # 新闻数量调整
-            news_adjustment = min(total_analyzed / 100, 1.0) * 10
-            
-            final_score = base_score + confidence_adjustment + news_adjustment
-            final_score = max(0, min(100, final_score))
-            
-            return final_score
-            
-        except Exception as e:
-            logger.error(f"情绪得分计算失败: {e}")
-            return -1
-
-    def calculate_comprehensive_score(self, scores:dict) -> float:
-        """计算综合得分"""
-        try:
-            technical_score = scores.get('technical', 50)
-            fundamental_score = scores.get('fundamental', 50)
-            sentiment_score = scores.get('sentiment', 50)
-            
-            comprehensive_score = (
-                technical_score * self.config.analysis_weights.technical +
-                fundamental_score * self.config.analysis_weights.fundamental +
-                sentiment_score * self.config.analysis_weights.sentiment
-            )
-            
-            comprehensive_score = max(0, min(100, comprehensive_score))
-            return comprehensive_score
-            
-        except Exception as e:
-            logger.error(f"计算综合得分失败: {e}")
-            return -1
-
     def get_stock_name(self, stock_code:str) -> str:
         """获取股票名称"""
         try:
@@ -686,52 +586,22 @@ class WebStockAnalyzer:
         
         return stock_code
 
-    def generate_recommendation(self, scores:dict) -> str:
-        """根据得分生成投资建议"""
-        try:
-            comprehensive_score = scores.get('comprehensive', 0)
-            technical_score = scores.get('technical', 0)
-            fundamental_score = scores.get('fundamental', 0)
-            sentiment_score = scores.get('sentiment', 0)
-            
-            if comprehensive_score >= 80:
-                if technical_score >= 75 and fundamental_score >= 75:
-                    return "强烈推荐买入"
-                else:
-                    return "推荐买入"
-            elif comprehensive_score >= 65:
-                if sentiment_score >= 60:
-                    return "建议买入"
-                else:
-                    return "谨慎买入"
-            elif comprehensive_score >= 45:
-                return "持有观望"
-            elif comprehensive_score >= 30:
-                return "建议减仓"
-            else:
-                return "建议卖出"
-                
-        except Exception as e:
-            logger.warning(f"生成投资建议失败: {e}")
-            return "数据不足，建议谨慎"
-
     def set_streaming_config(self, enabled:bool=True, show_thinking:bool=True):
         """设置流式推理配置"""
         self.config.streaming.enabled = enabled
         self.config.streaming.show_thinking = show_thinking
 
-    def analyze_stock(self, stock_code, enable_streaming=None, stream_callback=None):
+    def analyze_stock(self, stock_code:str, position_percent:float=0, avg_price:float=-1, enable_streaming:bool=False, streamer:StreamingSender=None):
         """分析股票的主方法（修正版，支持AI流式输出）"""
-        if enable_streaming is None:
-            enable_streaming = self.config.streaming.enabled
-        
         try:
             logger.info(f"开始增强版股票分析: {stock_code}")
+            if streamer:
+                streamer.send_progress('singleProgress', 5, "正在获取股票基本信息...")
             
             # 获取股票名称
             stock_name = self.get_stock_name(stock_code)
             
-            # 1. 获取价格数据和技术分析
+            # 获取价格数据和技术分析
             logger.info("正在进行技术分析...")
             price_data = self.get_stock_data(stock_code)
             if price_data.empty:
@@ -739,49 +609,62 @@ class WebStockAnalyzer:
             
             price_info = get_price_info(price_data)
             technical_analysis = calculate_technical_indicators(price_data)
-            technical_score = calculate_technical_score(technical_analysis)
+            if streamer:
+                streamer.send_partial_result({
+                    'type': 'basic_info',
+                    'stock_code': stock_code,
+                    'stock_name': stock_name,
+                    'current_price': price_info['current_price'],
+                    'price_change': price_info['price_change']
+                })
             
-            # 2. 获取财务指标和综合基本面分析
+            # 获取财务指标和综合基本面分析
             logger.info("正在进行财务指标分析...")
             fundamental_data = self.get_comprehensive_fundamental_data(stock_code)
-            fundamental_score = self.calculate_fundamental_score(fundamental_data)
             
-            # 3. 获取综合新闻数据和高级情绪分析
+            # 获取综合新闻数据和高级情绪分析
             logger.info("正在进行综合新闻和情绪分析...")
             comprehensive_news_data = self.get_comprehensive_news_data(stock_code, days=30)
             sentiment_analysis = self.calculate_advanced_sentiment_analysis(comprehensive_news_data)
-            sentiment_score = self.calculate_sentiment_score(sentiment_analysis)
             
             # 合并新闻数据到情绪分析结果中，方便AI分析使用
             sentiment_analysis.update(comprehensive_news_data)
             
-            # 4. 计算综合得分
-            scores = {
-                'technical': technical_score,
-                'fundamental': fundamental_score,
-                'sentiment': sentiment_score,
-                'comprehensive': self.calculate_comprehensive_score({
-                    'technical': technical_score,
-                    'fundamental': fundamental_score,
-                    'sentiment': sentiment_score
-                })
+            data_quality = {
+                'financial_indicators_count': len(fundamental_data.get('financial_indicators', {})),
+                'total_news_count': sentiment_analysis.get('total_analyzed', 0),
+                'analysis_completeness': '完整' if len(fundamental_data.get('financial_indicators', {})) >= 15 else '部分'
             }
+            if streamer:
+                streamer.send_data_quality(data_quality)
             
-            # 5. 生成投资建议
-            recommendation = self.generate_recommendation(scores)
+            # AI分析
+            no_thinking_config = analyzer.config.generation.model_copy()
+            no_thinking_config.extra_parm = {"chat_template_kwargs": {"enable_thinking": False}}
+            if streamer:
+                streamer.send_progress('singleProgress', 20, "正在分析K线图...")
+            _, K_graph_conclusion = k_graph_analysis(stock_name, get_K_graph_table(price_data), no_thinking_config)
+            if streamer:
+                streamer.send_progress('singleProgress', 40, "正在分析相关新闻...")
+            _, news_summary = news_summarize(stock_name, sentiment_analysis, no_thinking_config)
+            if streamer:
+                streamer.send_progress('singleProgress', 60, "正在分析公司价值...")
+            value_prompt, value_analysis = value_analyze(stock_code, stock_name, fundamental_data, price_info, no_thinking_config, streamer)
             
-            # 6. AI增强分析（包含所有详细数据，支持流式输出）
-            ai_analysis = generate_ai_analysis({
+            prompt, ai_analysis = generate_ai_analysis({
                 'stock_code': stock_code,
                 'stock_name': stock_name,
                 'price_info': price_info,
                 'technical_analysis': technical_analysis,
                 'fundamental_data': fundamental_data,
-                'sentiment_analysis': sentiment_analysis,
-                'scores': scores
-            }, analyzer.config.generation, enable_streaming, stream_callback)
+                "position_percent": position_percent,
+                "avg_price": avg_price,
+                "news_summary": news_summary,
+                "K_graph_conclusion": K_graph_conclusion,
+                "value_analysis": value_analysis
+            }, analyzer.config.generation, enable_streaming, streamer)
             
-            # 7. 生成最终报告
+            # 生成最终报告
             report = {
                 'stock_code': stock_code,
                 'stock_name': stock_name,
@@ -791,21 +674,18 @@ class WebStockAnalyzer:
                 'fundamental_data': fundamental_data,
                 'comprehensive_news_data': comprehensive_news_data,
                 'sentiment_analysis': sentiment_analysis,
-                'scores': scores,
                 'analysis_weights': self.config.analysis_weights.model_dump(),
-                'recommendation': recommendation,
                 'ai_analysis': ai_analysis,
-                'data_quality': {
-                    'financial_indicators_count': len(fundamental_data.get('financial_indicators', {})),
-                    'total_news_count': sentiment_analysis.get('total_analyzed', 0),
-                    'analysis_completeness': '完整' if len(fundamental_data.get('financial_indicators', {})) >= 15 else '部分'
-                }
+                'data_quality': data_quality,
+                "value_prompt": value_prompt,
+                "prompt": prompt
             }
-            
+            if streamer:
+                streamer.send_progress('singleProgress', 100, "分析完成")
+                streamer.send_final_result(report)
+                streamer.send_completion(f"✅ {stock_code} 流式分析完成")
+
             logger.info(f"✓ 增强版股票分析完成: {stock_code}")
-            logger.info(f"  - 财务指标: {len(fundamental_data.get('financial_indicators', {}))} 项")
-            logger.info(f"  - 新闻数据: {sentiment_analysis.get('total_analyzed', 0)} 条")
-            logger.info(f"  - 综合得分: {scores['comprehensive']:.1f}")
             
             return report
             
@@ -813,32 +693,43 @@ class WebStockAnalyzer:
             logger.error(f"增强版股票分析失败 {stock_code}: {str(e)}")
             raise
 
-    def analyze_stock_with_streaming(self, stock_code, streamer):
-        """带流式回调的股票分析方法"""
-        def stream_callback(content):
-            """AI流式内容回调"""
-            if streamer:
-                streamer.send_ai_stream(content)
+    def analyze_stock_with_streaming(self, stock_code:str, position_percent:float=0, avg_price:float=-1, streamer:StreamingSender=None):
+        return self.analyze_stock(stock_code, position_percent, avg_price, True, streamer)
+    
+    def analyze_batch_streaming(self, stock_codes:list[str], client_id:str):
+        streamer = StreamingSender(client_id, sse_manager)
+        try:
+            total_stocks = len(stock_codes)
+            streamer.send_log(f"📊 开始流式批量分析 {total_stocks} 只股票", 'header')
+            failed_stocks = []
+            for i, stock_code in enumerate(stock_codes):
+                try:
+                    progress = int((i / total_stocks) * 100)
+                    streamer.send_progress('batchProgress', progress, 
+                        f"正在分析第 {i+1}/{total_stocks} 只股票", stock_code)
+                    
+                    report = self.analyze_stock(stock_code)
+                    streamer.send_batch_result(i, report)
+                    streamer.send_log(f"{stock_code} 分析完成", 'success')
         
-        return self.analyze_stock(stock_code, enable_streaming=True, stream_callback=stream_callback)
-
-    # 兼容旧版本的方法名
-    def get_fundamental_data(self, stock_code):
-        """兼容方法：获取基本面数据"""
-        return self.get_comprehensive_fundamental_data(stock_code)
-    
-    def get_news_data(self, stock_code, days=30):
-        """兼容方法：获取新闻数据"""
-        return self.get_comprehensive_news_data(stock_code, days)
-    
-    def calculate_news_sentiment(self, news_data):
-        """兼容方法：计算新闻情绪"""
-        return self.calculate_advanced_sentiment_analysis(news_data)
-    
-    def get_sentiment_analysis(self, stock_code):
-        """兼容方法：获取情绪分析"""
-        news_data = self.get_comprehensive_news_data(stock_code)
-        return self.calculate_advanced_sentiment_analysis(news_data)
+                except Exception as e:
+                    failed_stocks.append(stock_code)
+                    streamer.send_log(f"{stock_code} 分析失败: {e}", 'error')       
+        
+            streamer.send_progress('batchProgress', 100, f"批量分析完成")
+            message = f"🎉 批量分析完成！成功分析 {total_stocks - len(failed_stocks)}/{total_stocks} 只股票"
+            if failed_stocks:
+                message += f"，失败: {', '.join(failed_stocks)}"
+            streamer.send_completion(message)
+            return
+        except Exception as e:
+            error_msg = f"批量流式分析失败: {str(e)}"
+            streamer.send_error(error_msg)
+            streamer.send_log(f"{error_msg}", 'error')
+            streamer.send_completion()
+            raise
+        
+                
     
 def init_analyzer(config_path:str) -> WebStockAnalyzer:
     """初始化分析器"""

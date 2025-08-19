@@ -1,6 +1,6 @@
 from flask import Blueprint, Response, request
 from datetime import datetime
-from queue import Empty
+from queue import Empty, Queue
 import json
 from app.utils.decorators import require_auth
 from app.logger import logger
@@ -16,7 +16,6 @@ def sse_stream():
         return "Missing client_id", 400
 
     def event_stream():
-        from queue import Queue
         client_queue = Queue()
         sse_manager.add_client(client_id, client_queue)
 

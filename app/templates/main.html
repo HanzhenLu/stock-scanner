@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>现代股票分析系统 - Enhanced v3.0-Web-SSE</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main_style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main_style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 </head>
 <body>
     <div class="container">
@@ -18,7 +18,6 @@
                     <span id="systemStatus" class="status-indicator status-ready">系统就绪</span>
                 </div>
                 <div class="header-buttons">
-                    <button class="config-btn" onclick="showConfig()">⚙️ AI配置</button>
                     {% if auth_enabled %}
                     <a href="{{ url_for('logout') }}" class="logout-btn">🚪 退出登录</a>
                     {% endif %}
@@ -113,59 +112,76 @@
 
             <!-- Right Panel - Results -->
             <div class="right-panel">
-                <div class="results-header">
-                    <h2>📋 分析结果</h2>
-                    <button id="exportBtn" class="btn btn-secondary" onclick="exportReport()" style="display: none;">
-                        📤 导出报告
-                    </button>
-                </div>
+                <!-- 单只股票分析的panel -->
+                <div id="singleResults" class="results-panel active">
+                    <div class="results-header">
+                        <h2>📋 分析结果</h2>
+                    </div>
 
-                <!-- Score Cards -->
-                <div id="scoreCards" class="score-cards">
-                    <div class="score-card" id="comprehensiveCard">
-                        <h4>综合得分</h4>
-                        <div class="score">--</div>
-                        <div class="max-score">/100</div>
+                    <!-- Data Quality Indicators -->
+                    <div id="dataQuality" class="data-quality">
+                        <div class="quality-indicator">
+                            <div id="financialCount" class="value">--</div>
+                            <div class="label">财务指标</div>
+                        </div>
+                        <div class="quality-indicator">
+                            <div id="newsCount" class="value">--</div>
+                            <div class="label">新闻数据</div>
+                        </div>
+                        <div class="quality-indicator">
+                            <div id="completeness" class="value">--</div>
+                            <div class="label">完整度</div>
+                        </div>
                     </div>
-                    <div class="score-card" id="technicalCard">
-                        <h4>技术分析</h4>
-                        <div class="score">--</div>
-                        <div class="max-score">/100</div>
-                    </div>
-                    <div class="score-card" id="fundamentalCard">
-                        <h4>基本面</h4>
-                        <div class="score">--</div>
-                        <div class="max-score">/100</div>
-                    </div>
-                    <div class="score-card" id="sentimentCard">
-                        <h4>市场情绪</h4>
-                        <div class="score">--</div>
-                        <div class="max-score">/100</div>
-                    </div>
-                </div>
 
-                <!-- Data Quality Indicators -->
-                <div id="dataQuality" class="data-quality">
-                    <div class="quality-indicator">
-                        <div id="financialCount" class="value">--</div>
-                        <div class="label">财务指标</div>
-                    </div>
-                    <div class="quality-indicator">
-                        <div id="newsCount" class="value">--</div>
-                        <div class="label">新闻数据</div>
-                    </div>
-                    <div class="quality-indicator">
-                        <div id="completeness" class="value">--</div>
-                        <div class="label">完整度</div>
+                    <!-- Results Content -->
+                    <div id="resultsContent" class="results-content">
+                        <div class="empty-state">
+                            <h3>📊 等待分析</h3>
+                            <p>请在左侧输入股票代码并开始分析</p>
+                            <p style="margin-top: 8px; font-size: 12px; color: #9ba2ab;">🌊 支持SSE实时推送</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Results Content -->
-                <div id="resultsContent" class="results-content">
-                    <div class="empty-state">
-                        <h3>📊 等待分析</h3>
-                        <p>请在左侧输入股票代码并开始分析</p>
-                        <p style="margin-top: 8px; font-size: 12px; color: #9ba2ab;">🌊 支持SSE实时推送</p>
+                <!-- 批量分析结果 -->
+                <div id="batchResults" class="results-panel">
+                    <div class="results-header">
+                        <h2>📋 批量分析结果</h2>
+                    </div>
+
+                    <div id="batchSlots" class="batch-slots">
+                        <!-- 预留 10 个槽位 -->
+                        {% for i in range(10) %}
+                        <div class="batch-slot hidden" id="batchSlot{{ i }}">
+                            <div class="slot-header">
+                                <span class="slot-title" id="slotTitle{{ i }}">{{ i+1 }}</span>
+                                <button class="expand-btn" onclick="toggleSlot({{ i }})">展开</button>
+                            </div>
+                            <div class="slot-body" id="slotBody{{ i }}">
+                                <div class="data-quality active">
+                                    <div class="quality-indicator">
+                                        <div id="financialCountBatch{{ i }}" class="value">--</div>
+                                        <div class="label">财务指标</div>
+                                    </div>
+                                    <div class="quality-indicator">
+                                        <div id="newsCountBatch{{ i }}" class="value">--</div>
+                                        <div class="label">新闻数据</div>
+                                    </div>
+                                    <div class="quality-indicator">
+                                        <div id="completenessBatch{{ i }}" class="value">--</div>
+                                        <div class="label">完整度</div>
+                                    </div>
+                                </div>
+                                <div id="batchResultsContent{{ i }}" class="results-content">
+                                    <div class="empty-state">
+                                        <h3>📊 等待数据</h3>
+                                        <p>数据还未加载完成</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
@@ -174,7 +190,7 @@
 
     <!-- 添加marked.js用于markdown解析 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
 </body>
 </html>

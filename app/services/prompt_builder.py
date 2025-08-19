@@ -80,8 +80,7 @@ def _get_analysis_instruction():
 
 
 def build_enhanced_ai_analysis_prompt(
-    stock_code: str, stock_name: str, scores: dict,
-    technical_analysis: dict, fundamental_data: dict,
+    stock_code: str, stock_name: str, technical_analysis: dict, fundamental_data: dict,
     news_summary: str, price_info: dict, K_graph_description: str, value_analysis: str,
     avg_price: float, position_percent: float
 ) -> str:
@@ -128,7 +127,7 @@ def build_enhanced_ai_analysis_prompt(
     return prompt
 
 def build_K_graph_table_prompt(stock_name:str, K_graph_table:pd.DateOffset) -> str:
-    prompt = f'''请作为一位资深的股票分析师，基于{stock_name}30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
+    prompt = f'''请作为一位资深的股票分析师，当前时间为{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}，基于{stock_name}30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
 表格如下
 {str(K_graph_table)}
 你首先需要对这个表格的内容进行描述；
