@@ -651,18 +651,16 @@ function showBatchSlot(eventData) {
     </div>
 
     <div class="llm-tab-content active" id="value-prompt-${index}">
-        <p style="ai-analysis-content">${parseMarkdown(report.value_prompt)}</p>
+        <div class="ai-analysis-content">${parseMarkdown(report.value_prompt)}</div>
     </div>
 
     <div class="llm-tab-content" id="llm-prompt-${index}">
-        <p style="ai-analysis-content">${parseMarkdown(report.prompt)}</p>
+        <div class="ai-analysis-content">${parseMarkdown(report.prompt)}</div>
     </div>
 
     <div class="llm-tab-content" id="llm-results-${index}">
         <h3 style="color:#f57c00;">🤖 AI 深度分析</h3>
-        <div style="ai-analysis-content">
-            ${parseMarkdown(report.ai_analysis)}
-        </div>
+        <div class="ai-analysis-content">${parseMarkdown(report.ai_analysis)}</div>
     </div>
 </div>`;
     // 为当前槽位的按钮加事件

@@ -8,9 +8,9 @@ from app.logger import logger
 from app.utils.config import load_config
 from app.utils.financial_utils import (get_price_info, calculate_technical_indicators, get_K_graph_table)
 from app.utils.sse_manager import StreamingSender
+from app.utils.format_utils import format_value
 from app.container import sse_manager
 from app.services.ai_client import generate_ai_analysis, news_summarize, k_graph_analysis, value_analyze
-from app.services.prompt_builder import build_value_prompt
 
 class WebStockAnalyzer:
     """Web版增强股票分析器"""
@@ -184,7 +184,7 @@ class WebStockAnalyzer:
                 # 获取财务分析指标
                 financial_analysis_indicator = ak.stock_financial_analysis_indicator(symbol=stock_code, start_year=f"{current_time.year}")
                 if not financial_analysis_indicator.empty:
-                    latest_financial_analysis_indicator = financial_analysis_indicator.iloc[-1].to_dict()
+                    latest_financial_analysis_indicator = format_value(financial_analysis_indicator.iloc[-1].to_dict())
                 
                 def safe_isnan(x):
                     try:
@@ -208,14 +208,7 @@ class WebStockAnalyzer:
                 valuation_data = ak.stock_value_em(symbol=stock_code)
                 if not valuation_data.empty:
                     latest_valuation = valuation_data.iloc[-1].to_dict()
-                    # 清理估值数据中的NaN值
-                    cleaned_valuation = {}
-                    for key, value in latest_valuation.items():
-                        if pd.isna(value) or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
-                            cleaned_valuation[key] = None
-                        else:
-                            cleaned_valuation[key] = value
-                    fundamental_data['valuation'] = cleaned_valuation
+                    fundamental_data['valuation'] = format_value(latest_valuation)
                     logger.info("✓ 估值指标获取成功")
                 else:
                     fundamental_data['valuation'] = {}
@@ -240,7 +233,7 @@ class WebStockAnalyzer:
                     if stock_code in performance_forecast["股票代码"].values:
                         break
                 if stock_code in performance_forecast["股票代码"].values:
-                    fundamental_data['performance_repo'] = performance_forecast[performance_forecast["股票代码"] == stock_code].iloc[0].to_dict()
+                    fundamental_data['performance_repo'] = format_value(performance_forecast[performance_forecast["股票代码"] == stock_code].iloc[0].to_dict())
                     logger.info("✓ 业绩报表获取成功")
                 else:
                     logger.info("未能查找到业绩报表")
@@ -256,7 +249,7 @@ class WebStockAnalyzer:
                 if not dividend_info.empty:
                     dividend_info_list = []
                     for i in range(min(5, len(dividend_info))):
-                        dividend_info_list.append(dividend_info.iloc[-(i+1)].to_dict())
+                        dividend_info_list.append(format_value(dividend_info.iloc[-(i+1)].to_dict()))
                     fundamental_data['dividend_info'] = dividend_info_list
                     logger.info("✓ 分红配股信息获取成功")
                 else:
@@ -268,7 +261,7 @@ class WebStockAnalyzer:
             # 6. 行业分析
             try:
                 logger.info("正在获取行业分析数据...")
-                industry_analysis = self.get_industry_analysis(fundamental_data['basic_info']["行业"])
+                industry_analysis = self.get_industry_analysis(fundamental_data['basic_info']["行业"], stock_code)
                 fundamental_data['industry_analysis'] = industry_analysis
                 logger.info("✓ 行业分析数据获取成功")
             except Exception as e:
@@ -292,58 +285,36 @@ class WebStockAnalyzer:
                 'industry_analysis': {}
             }
 
-    def get_industry_analysis(self, industry_name:str) -> dict:
+    def get_industry_analysis(self, industry_name:str, stock_code:str) -> dict:
         """获取行业分析数据"""
         try:
             industry_data = {}
-            current_time = datetime.today()
 
             # 获取行业信息
             try:
                 industry_info = ak.stock_board_industry_name_em()
                 stock_industry_info = industry_info[industry_info["板块名称"] == industry_name].iloc[0].to_dict()
-                industry_data['industry_info'] = stock_industry_info
+                industry_data['industry_info'] = format_value(stock_industry_info)
             except Exception as e:
                 logger.warning(f"获取行业信息失败: {e}")
                 industry_data['industry_info'] = {}
             
             try:
-                # 最近 30 天的交易日数据
-                start_date = (current_time - timedelta(days=30)).strftime('%Y%m%d')
-                stock_data = ak.stock_zh_a_hist(
-                    symbol="000001",
-                    period="daily",
-                    start_date=start_date,
-                    end_date=current_time.strftime("%Y%m%d"),
-                    adjust="qfq"
-                )
-                # 最近两个交易日，按日期升序排列
-                date_df = stock_data[['日期']].sort_values('日期').reset_index(drop=True)
-                last_trading_day = date_df.iloc[-1]['日期']
-                previous_trading_day = date_df.iloc[-2]['日期']
-
-                # 决定用于获取 PE 的日期
-                if last_trading_day.strftime('%Y-%m-%d') == current_time.strftime('%Y-%m-%d') and current_time.hour < 17:
-                    # 今天交易日但未收盘 → 用上一个交易日
-                    pe_date = previous_trading_day.strftime('%Y%m%d')
-                else:
-                    # 今天非交易日，或已收盘 → 用最近一个交易日
-                    pe_date = last_trading_day.strftime('%Y%m%d')
-
                 # 获取行业市盈率
-                industry_pe_info = ak.stock_industry_pe_ratio_cninfo("国证行业分类", pe_date)
-                if industry_name not in industry_pe_info["行业名称"].to_list():
-                    industry_pe_info = ak.stock_industry_pe_ratio_cninfo("证监会行业分类", pe_date)
-                if industry_name in industry_pe_info["行业名称"].to_list():
-                    stock_industry_pe_info = industry_pe_info[industry_pe_info["行业名称"] == industry_name].iloc[0].to_dict()
-                    industry_data['industry_pe_info'] = stock_industry_pe_info
-                else:
-                    stock_board_industry_cons_em_df = ak.stock_board_industry_cons_em(symbol=industry_name)
-                    industry_data['industry_pe_info'] = {
-                        "平均换手率": round(float(stock_board_industry_cons_em_df["换手率"].mean()), 2),
-                        "平均市盈率-动态": round(float(stock_board_industry_cons_em_df["市盈率-动态"].mean()), 2),
-                        "平均市净率": round(float(stock_board_industry_cons_em_df["市净率"].mean()), 2)
-                    }
+                stock_board_industry_cons_em_df = ak.stock_board_industry_cons_em(symbol=industry_name)
+                stock_pe_info = format_value(stock_board_industry_cons_em_df[stock_board_industry_cons_em_df["代码"] == stock_code].iloc[0].to_dict())
+                stock_name = stock_pe_info["名称"]
+                industry_data['industry_pe_info'] = {
+                    "平均换手率": round(float(stock_board_industry_cons_em_df["换手率"].mean()), 2),
+                    "中位数换手率": round(float(stock_board_industry_cons_em_df["换手率"].median()), 2),
+                    "平均市盈率-动态": round(float(stock_board_industry_cons_em_df["市盈率-动态"].mean()), 2),
+                    "中位数市盈率-动态": round(float(stock_board_industry_cons_em_df["市盈率-动态"].median()), 2),
+                    "平均市净率": round(float(stock_board_industry_cons_em_df["市净率"].mean()), 2),
+                    "中位数市净率": round(float(stock_board_industry_cons_em_df["市净率"].median()), 2),
+                    f"{stock_name} 换手率": stock_pe_info["换手率"],
+                    f"{stock_name} 市盈率-动态": stock_pe_info["市盈率-动态"],
+                    f"{stock_name} 市净率": stock_pe_info["市净率"]
+                }
 
             except Exception as e:
                 logger.warning(f"获取行业市盈率失败: {e}")
