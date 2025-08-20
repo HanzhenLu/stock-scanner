@@ -93,13 +93,6 @@ class StreamingSender:
             'current_stock': current_stock
         })
     
-    def send_scores(self, scores, animate=True):
-        """发送评分更新"""
-        self.sse_manager.send_to_client(self.client_id, 'scores_update', {
-            'scores': scores,
-            'animate': animate
-        })
-    
     def send_data_quality(self, data_quality):
         """发送数据质量指标"""
         self.sse_manager.send_to_client(self.client_id, 'data_quality_update', data_quality)
@@ -114,10 +107,12 @@ class StreamingSender:
         cleaned_result = clean_data_for_json(result)
         self.sse_manager.send_to_client(self.client_id, 'final_result', cleaned_result)
     
-    def send_batch_result(self, results):
+    def send_batch_result(self, index:int, report:dict):
         """发送批量结果"""
-        cleaned_results = clean_data_for_json(results)
-        self.sse_manager.send_to_client(self.client_id, 'batch_result', cleaned_results)
+        self.sse_manager.send_to_client(self.client_id, 'batch_result', {
+            "index": index,
+            "report": report
+        })
     
     def send_completion(self, message=None):
         """发送完成信号"""

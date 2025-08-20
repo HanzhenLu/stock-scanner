@@ -70,18 +70,12 @@ def _get_analysis_instruction():
 * 制定分批操作策略
 * 评估投资时间周期
 
-## 风险机会识别
-* 列出主要投资风险和应对措施
-* 识别潜在催化剂和成长机会
-* 分析宏观环境和政策影响
-* 提供动态调整建议
-
+注意，你只能使用已经提供的信息或通过已有信息可以推断出的额外信息，不要使用任何没有来源的数据！
 请用专业、客观的语言进行分析，确保逻辑清晰、数据支撑充分、结论明确可执行。"""
 
 
 def build_enhanced_ai_analysis_prompt(
-    stock_code: str, stock_name: str, scores: dict,
-    technical_analysis: dict, fundamental_data: dict,
+    stock_code: str, stock_name: str, technical_analysis: dict, fundamental_data: dict,
     news_summary: str, price_info: dict, K_graph_description: str, value_analysis: str,
     avg_price: float, position_percent: float
 ) -> str:
@@ -128,7 +122,7 @@ def build_enhanced_ai_analysis_prompt(
     return prompt
 
 def build_K_graph_table_prompt(stock_name:str, K_graph_table:pd.DateOffset) -> str:
-    prompt = f'''请作为一位资深的股票分析师，基于{stock_name}30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
+    prompt = f'''请作为一位资深的股票分析师，当前时间为{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}，基于{stock_name}30个交易日内的股票开盘价（open），收盘价（close），最高价（high）和最低价（low），来进行深度地分析
 表格如下
 {str(K_graph_table)}
 你首先需要对这个表格的内容进行描述；
@@ -141,7 +135,7 @@ def build_K_graph_table_prompt(stock_name:str, K_graph_table:pd.DateOffset) -> s
     return prompt
 
 def build_news_summary_prompt(stock_name:str, news:str) -> str:
-    prompt = f'''请作为一位资深的股票分析师，当前时间为{datetime.datetime.now()}，请你对{stock_name}近期的新闻、报告进行一次总结
+    prompt = f'''请作为一位资深的股票分析师，当前时间为{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}，请你对{stock_name}近期的新闻、报告进行一次总结
 新闻内容如下
 {news}
 由于股票中的新闻具有很强的时效性，请尽量保留时间信息；
@@ -156,7 +150,7 @@ def build_news_summary_prompt(stock_name:str, news:str) -> str:
 
 def build_value_prompt(stock_code: str, stock_name: str, fundamental_data: dict, price_info: dict) -> str:
     financial_text = _build_financial_section(fundamental_data.get('financial_indicators', {}))
-    prompt = f"""你是一位资深的股票分析师，当前时间为{datetime.datetime.now()}，基于以下详细数据对股票进行深度分析：
+    prompt = f"""你是一位资深的股票分析师，当前时间为{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}，基于以下详细数据对股票进行深度分析：
 # 股票基本信息
 * 股票代码：{stock_code}
 * 股票名称：{stock_name}
@@ -181,6 +175,7 @@ def build_value_prompt(stock_code: str, stock_name: str, fundamental_data: dict,
 {fundamental_data.get('industry_analysis', {})}
 
 请基于以上信息，分析公司的财务状况与分红政策，最后给出综合价值判断；
+注意，你只能使用已经提供的信息或通过已有信息可以推断出的额外信息，不要使用任何没有来源的数据！
 注意，请直接输出分析内容，不需要添加包括打招呼在内的任何额外内容！
 请包含以下几个章节
 ## 公司基本面

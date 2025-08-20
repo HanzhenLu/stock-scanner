@@ -16,25 +16,23 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         
         stock_code = analysis_data['stock_code']
         stock_name = analysis_data['stock_name']
-        scores = analysis_data['scores']
         technical_analysis = analysis_data['technical_analysis']
         fundamental_data = analysis_data['fundamental_data']
-        sentiment_analysis = analysis_data['sentiment_analysis']
         price_info = analysis_data['price_info']
-        
-        no_thinking_config = generation_config.model_copy()
-        no_thinking_config.extra_parm = {"chat_template_kwargs": {"enable_thinking": False}}
-        K_graph_conclusion = k_graph_analysis(stock_name, analysis_data['k_graph_table'], no_thinking_config)
-        news_summary = news_summarize(stock_name, sentiment_analysis, no_thinking_config)
-        value_analysis = value_analyze(stock_code, stock_name, fundamental_data, price_info, no_thinking_config, streamer)
+        news_summary = analysis_data["news_summary"]
+        K_graph_conclusion = analysis_data["K_graph_conclusion"]
+        value_analysis = analysis_data["value_analysis"]
         
         # 构建增强版AI分析提示词
+        if streamer:
+            streamer.send_progress('singleProgress', 80, "正在生成总结...")
         prompt = build_enhanced_ai_analysis_prompt(
-            stock_code, stock_name, scores, technical_analysis, 
+            stock_code, stock_name, technical_analysis, 
             fundamental_data, news_summary, price_info, K_graph_conclusion, value_analysis,
             analysis_data["avg_price"], analysis_data["position_percent"]
         )
-        streamer.send_prompt("llm-prompt", prompt)
+        if streamer:
+            streamer.send_prompt("llm-prompt", prompt)
         
         # 设置AI流式内容处理
         ai_content_buffer = ""
@@ -51,7 +49,7 @@ def generate_ai_analysis(analysis_data:dict, generation_config:GenerationConfig,
         
         if ai_response:
             logger.info("✅ AI深度分析完成")
-            return ai_response
+            return prompt, ai_response
         else:
             logger.warning("⚠️ AI API不可用，使用高级分析模式")
             return None
@@ -65,7 +63,7 @@ def k_graph_analysis(stock_name:str, price_data:pd.DataFrame, generation_config:
     ai_response = _call_ai_api(prompt, generation_config)
     if ai_response:
         logger.info("✅ K graph表格读取完成")
-        return ai_response
+        return prompt, ai_response
     else:
         logger.warning("⚠️ K graph表格读取失败")
         return None
@@ -79,18 +77,19 @@ def news_summarize(stock_name:str, sentiment_analysis:dict, generation_config:Ge
     ai_response = _call_ai_api(prompt, generation_config)
     if ai_response:
         logger.info("✅ 新闻总结完成")
-        return ai_response
+        return prompt, ai_response
     else:
         logger.warning("⚠️ 新闻总结失败")
         return None
     
 def value_analyze(stock_code:str, stock_name:str, fundamental_data:dict, price_info:dict, generation_config:GenerationConfig, streamer:StreamingSender) -> str:
     prompt = build_value_prompt(stock_code, stock_name, fundamental_data, price_info)
-    streamer.send_prompt("value-prompt", prompt)
+    if streamer:
+        streamer.send_prompt("value-prompt", prompt)
     ai_response = _call_ai_api(prompt, generation_config)
     if ai_response:
         logger.info("✅ 价值分析完成")
-        return ai_response
+        return prompt, ai_response
     else:
         logger.warning("⚠️ 价值分析失败")
         return None

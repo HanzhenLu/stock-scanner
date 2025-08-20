@@ -2,6 +2,7 @@ import json
 import math
 import sys
 import numpy as np
+import pandas as pd
 
 def format_dict_data(data_dict:dict, max_items:int=sys.maxsize) -> str:
     """格式化字典数据"""
@@ -33,6 +34,18 @@ def format_list_data(data_list:list, max_items:int=sys.maxsize) -> str:
             formatted += f"- {item}\n"
     
     return formatted if formatted else "无有效数据"
+
+def format_value(data_dict:dict) -> dict:
+    new_data_dict = {}
+    for k, v in data_dict.items():
+        if isinstance(v, (int, float)):
+            if pd.isna(v) or math.isnan(v) or math.isinf(v):
+                continue
+            else:
+                new_data_dict[k] = f"{v:.4g}"
+        else:
+            new_data_dict[k] = v
+    return new_data_dict
 
 def clean_data_for_json(obj):
     """清理数据中的NaN、Infinity、日期等无效值，使其能够正确序列化为JSON"""
